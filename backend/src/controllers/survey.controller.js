@@ -79,7 +79,7 @@ async function getSurveyById(req, res) {
   try {
     const { id } = req.params;
     const { rows } = await pool.query(
-      `SELECT * FROM survey_responses WHERE id = ?`, [id]
+      `SELECT * FROM survey_responses WHERE id = $1`, [id]
     );
 
     // Fetch media separately
@@ -88,7 +88,7 @@ async function getSurveyById(req, res) {
         `SELECT id, file_name AS fileName, content_type AS contentType,
                 media_category AS mediaCategory, keyword, file_size_bytes AS fileSize,
                 arcgis_url AS arcgisUrl
-         FROM media_attachments WHERE response_id = ?`, [id]
+         FROM media_attachments WHERE response_id = $1`, [id]
       );
       rows[0].media = mediaRows.length > 0 ? mediaRows : null;
     }
@@ -155,7 +155,7 @@ async function updateSurvey(req, res) {
     const updates = req.body;
 
     // Fetch existing record
-    const { rows } = await pool.query('SELECT * FROM survey_responses WHERE id = ?', [id]);
+    const { rows } = await pool.query('SELECT * FROM survey_responses WHERE id = $1', [id]);
     if (rows.length === 0) {
       return res.status(404).json({ success: false, error: 'Survey not found' });
     }
@@ -227,8 +227,8 @@ async function updateSurvey(req, res) {
     const params = [];
     for (const [field, col] of Object.entries(fieldMap)) {
       if (updates[field] !== undefined) {
-        setClauses.push(`${col} = ?`);
         params.push(updates[field]);
+        setClauses.push(`${col} = $${params.length}`);
       }
     }
 
@@ -270,12 +270,18 @@ async function updateSurvey(req, res) {
     const complianceScore = totalFields > 0 ? parseFloat(((filledFields / totalFields) * 100).toFixed(2)) : 0;
     const isComplete = filledRequired === requiredFields.length ? 1 : 0;
 
-    setClauses.push('compliance_score = ?', 'is_complete = ?', 'total_fields = ?', 'filled_fields = ?');
-    params.push(complianceScore, isComplete, totalFields, filledFields);
+    params.push(complianceScore);
+    setClauses.push(`compliance_score = $${params.length}`);
+    params.push(isComplete);
+    setClauses.push(`is_complete = $${params.length}`);
+    params.push(totalFields);
+    setClauses.push(`total_fields = $${params.length}`);
+    params.push(filledFields);
+    setClauses.push(`filled_fields = $${params.length}`);
 
     params.push(id);
     await pool.query(
-      `UPDATE survey_responses SET ${setClauses.join(', ')} WHERE id = ?`,
+      `UPDATE survey_responses SET ${setClauses.join(', ')} WHERE id = $${params.length}`,
       params
     );
 
@@ -354,7 +360,7 @@ async function updateSurvey(req, res) {
           if (queryResult.features && queryResult.features.length > 0) {
             objectId = queryResult.features[0].attributes.objectid;
             // Save objectId locally for future use
-            await pool.query('UPDATE survey_responses SET arcgis_object_id = ? WHERE id = ?', [objectId, id]);
+            await pool.query('UPDATE survey_responses SET arcgis_object_id = $1 WHERE id = $2', [objectId, id]);
           }
         }
 
@@ -387,7 +393,7 @@ async function updateSurvey(req, res) {
     realtimeService.broadcast('survey:updated', { id, complianceScore });
 
     // Return updated record
-    const { rows: updatedRows } = await pool.query('SELECT * FROM survey_responses WHERE id = ?', [id]);
+    const { rows: updatedRows } = await pool.query('SELECT * FROM survey_responses WHERE id = $1', [id]);
 
     res.json({
       success: true,

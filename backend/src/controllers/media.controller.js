@@ -15,7 +15,7 @@ async function listMedia(req, res) {
 
     if (type) {
       params.push(type);
-      where += ` AND ma.media_category = ?`;
+      where += ` AND ma.media_category = $${params.length}`;
     }
 
     const countQuery = `SELECT COUNT(*) AS count FROM media_attachments ma ${where}`;
@@ -34,7 +34,7 @@ async function listMedia(req, res) {
       JOIN survey_responses sr ON sr.id = ma.response_id
       ${where}
       ORDER BY ma.created_at DESC
-      LIMIT ? OFFSET ?
+      LIMIT $${params.length - 1} OFFSET $${params.length}
     `;
 
     const { rows } = await pool.query(dataQuery, params);
@@ -57,7 +57,7 @@ async function downloadMedia(req, res) {
       `SELECT ma.arcgis_attachment_id, sr.arcgis_object_id, ma.content_type, ma.file_name
        FROM media_attachments ma
        JOIN survey_responses sr ON sr.id = ma.response_id
-       WHERE ma.id = ?`,
+       WHERE ma.id = $1`,
       [id]
     );
 
@@ -137,7 +137,7 @@ async function syncAllAttachments(req, res) {
           for (const feat of result.features) {
             const gid = feat.attributes.globalid;
             const oid = feat.attributes.objectid;
-            await pool.query('UPDATE survey_responses SET arcgis_object_id = ? WHERE arcgis_global_id = ?', [oid, gid]);
+            await pool.query('UPDATE survey_responses SET arcgis_object_id = $1 WHERE arcgis_global_id = $2', [oid, gid]);
             updated++;
           }
         }
@@ -190,7 +190,7 @@ async function syncAllAttachments(req, res) {
           try {
             await pool.query(
               `INSERT INTO media_attachments (id, response_id, arcgis_attachment_id, arcgis_global_id, file_name, content_type, media_category, keyword, file_size_bytes, arcgis_url)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
               [id, response.id, att.id, att.globalId || null, att.name || 'unknown', contentType, mediaCategory, att.keywords || null, att.size || 0, url]
             );
             totalAttachments++;

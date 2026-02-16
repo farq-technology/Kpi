@@ -5,8 +5,8 @@ class KpiService {
   async getSummary(dateFrom, dateTo) {
     const params = [];
     let where = 'WHERE 1=1';
-    if (dateFrom) { params.push(dateFrom); where += ` AND submitted_at >= ?`; }
-    if (dateTo) { params.push(dateTo); where += ` AND submitted_at <= ?`; }
+    if (dateFrom) { params.push(dateFrom); where += ` AND submitted_at >= $${params.length}`; }
+    if (dateTo) { params.push(dateTo); where += ` AND submitted_at <= $${params.length}`; }
 
     const { rows } = await pool.query(`
       SELECT
@@ -48,18 +48,18 @@ class KpiService {
   async getDailyStats(dateFrom, dateTo) {
     const params = [];
     let where = 'WHERE submitted_at IS NOT NULL';
-    if (dateFrom) { params.push(dateFrom); where += ` AND submitted_at >= ?`; }
-    if (dateTo) { params.push(dateTo); where += ` AND submitted_at <= ?`; }
+    if (dateFrom) { params.push(dateFrom); where += ` AND submitted_at >= $${params.length}`; }
+    if (dateTo) { params.push(dateTo); where += ` AND submitted_at <= $${params.length}`; }
 
     const { rows } = await pool.query(`
       SELECT
-        date(submitted_at) AS day,
+        DATE_TRUNC('day', submitted_at)::DATE AS day,
         COUNT(*) AS total,
         COUNT(DISTINCT surveyor_username) AS surveyors,
         AVG(compliance_score) AS avg_compliance,
         SUM(CASE WHEN is_complete = 0 THEN 1 ELSE 0 END) AS incomplete
       FROM survey_responses ${where}
-      GROUP BY date(submitted_at)
+      GROUP BY DATE_TRUNC('day', submitted_at)::DATE
       ORDER BY day ASC
     `, params);
 
@@ -75,17 +75,17 @@ class KpiService {
   async getWeeklyStats(dateFrom, dateTo) {
     const params = [];
     let where = 'WHERE submitted_at IS NOT NULL';
-    if (dateFrom) { params.push(dateFrom); where += ` AND submitted_at >= ?`; }
-    if (dateTo) { params.push(dateTo); where += ` AND submitted_at <= ?`; }
+    if (dateFrom) { params.push(dateFrom); where += ` AND submitted_at >= $${params.length}`; }
+    if (dateTo) { params.push(dateTo); where += ` AND submitted_at <= $${params.length}`; }
 
     const { rows } = await pool.query(`
       SELECT
-        date(submitted_at, 'weekday 0', '-6 days') AS week,
+        DATE_TRUNC('week', submitted_at)::DATE AS week,
         COUNT(*) AS total,
         COUNT(DISTINCT surveyor_username) AS surveyors,
         AVG(compliance_score) AS avg_compliance
       FROM survey_responses ${where}
-      GROUP BY date(submitted_at, 'weekday 0', '-6 days')
+      GROUP BY DATE_TRUNC('week', submitted_at)::DATE
       ORDER BY week ASC
     `, params);
 

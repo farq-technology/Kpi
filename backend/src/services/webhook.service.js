@@ -41,13 +41,13 @@ class WebhookService {
       try {
         const surveyResult = await database.query(
           `INSERT INTO surveys (id, form_item_id, form_title, service_item_id, service_url)
-           VALUES (?, ?, ?, ?, ?)
+           VALUES ($1, $2, $3, $4, $5)
            ON CONFLICT (form_item_id) DO NOTHING`,
           [surveyId, surveyInfo.formItemId, surveyInfo.formTitle || 'POI Survey', surveyInfo.serviceItemId || null, surveyInfo.serviceUrl || null]
         );
         // Try to get existing survey id
         const existing = await database.query(
-          'SELECT id FROM surveys WHERE form_item_id = ?', [surveyInfo.formItemId]
+          'SELECT id FROM surveys WHERE form_item_id = $1', [surveyInfo.formItemId]
         );
         if (existing.rows.length > 0) surveyId = existing.rows[0].id;
       } catch (err) {
@@ -72,18 +72,18 @@ class WebhookService {
         is_complete, missing_fields, compliance_score, total_fields, filled_fields,
         event_type, submitted_at, raw_payload, attributes
       ) VALUES (
-        ?, ?, ?, ?,
-        ?, ?, ?, ?,
-        ?, ?, ?, ?,
-        ?, ?, ?, ?,
-        ?, ?, ?, ?,
-        ?, ?, ?,
-        ?, ?, ?,
-        ?, ?, ?, ?,
-        ?, ?, ?, ?,
-        ?, ?,
-        ?, ?, ?, ?, ?,
-        ?, ?, ?, ?
+        $1, $2, $3, $4,
+        $5, $6, $7, $8,
+        $9, $10, $11, $12,
+        $13, $14, $15, $16,
+        $17, $18, $19, $20,
+        $21, $22, $23,
+        $24, $25, $26,
+        $27, $28, $29, $30,
+        $31, $32, $33, $34,
+        $35, $36,
+        $37, $38, $39, $40, $41,
+        $42, $43, $44, $45
       )
     `;
 
@@ -152,7 +152,7 @@ class WebhookService {
       const id = crypto.randomUUID();
       await database.query(
         `INSERT INTO media_attachments (id, response_id, arcgis_attachment_id, arcgis_global_id, file_name, content_type, media_category, keyword, file_size_bytes, arcgis_url)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
         [id, responseId, att.id || 0, att.globalId || null, att.name || 'unknown', contentType, mediaCategory, att.keywords || null, att.size || 0, att.url || '']
       );
     }
