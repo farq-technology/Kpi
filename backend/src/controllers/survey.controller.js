@@ -268,7 +268,7 @@ async function updateSurvey(req, res) {
     const totalFields = allFieldValues.length;
     const filledFields = allFieldValues.filter(f => f && f !== '' && f !== 'N/A').length;
     const complianceScore = totalFields > 0 ? parseFloat(((filledFields / totalFields) * 100).toFixed(2)) : 0;
-    const isComplete = filledRequired === requiredFields.length ? 1 : 0;
+    const isComplete = filledRequired === requiredFields.length;
 
     params.push(complianceScore);
     setClauses.push(`compliance_score = $${params.length}`);

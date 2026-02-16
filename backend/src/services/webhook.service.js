@@ -108,7 +108,7 @@ class WebhookService {
       attrs.is_wheelchair_accessible || null, attrs.cuisine || null,
       attrs.offers_iftar_menu || null, attrs.is_open_during_suhoor || null,
       lat || null, lon || null,
-      isComplete ? 1 : 0, JSON.stringify(missingFields), score, totalFields, filledFields,
+      isComplete, missingFields, score, totalFields, filledFields,
       eventType, submittedAt, JSON.stringify(payload), JSON.stringify(attrs),
     ];
 
