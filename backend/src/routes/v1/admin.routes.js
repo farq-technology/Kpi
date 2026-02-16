@@ -48,19 +48,19 @@ async function getToken() {
   return arcgisToken;
 }
 
-async function runImport() {
+async function runImport(whereFilter) {
   const BATCH_SIZE = 2000;
   const serviceUrl = config.arcgis.serviceUrl;
+  const where = whereFilter || "district_en LIKE '%Nafl%' OR district_ar LIKE '%النفل%'";
 
   // Get total count
   const token = await getToken();
-  const countResp = await axios.get(`${serviceUrl}/query`, {
-    params: { where: '1=1', returnCountOnly: true, f: 'json', token },
-    timeout: 15000,
-  });
+  const countResp = await axios.post(`${serviceUrl}/query`, new URLSearchParams({
+    where, returnCountOnly: true, f: 'json', token,
+  }), { timeout: 15000 });
   const totalCount = countResp.data.count;
-  importProgress = { status: 'running', imported: 0, total: totalCount, errors: 0, startedAt: new Date().toISOString() };
-  console.log(`[Import] Starting: ${totalCount} features`);
+  importProgress = { status: 'running', imported: 0, total: totalCount, errors: 0, filter: where, startedAt: new Date().toISOString() };
+  console.log(`[Import] Starting: ${totalCount} features (filter: ${where})`);
 
   // Clear existing data
   await pool.query('DELETE FROM media_attachments');
@@ -73,7 +73,7 @@ async function runImport() {
     try {
       const tk = await getToken();
       const resp = await axios.post(`${serviceUrl}/query`, new URLSearchParams({
-        where: '1=1',
+        where,
         outFields: '*',
         returnGeometry: true,
         resultOffset: offset,
@@ -177,7 +177,7 @@ router.post('/import', (req, res) => {
   }
 
   importRunning = true;
-  runImport()
+  runImport(req.query.where || null)
     .catch(err => {
       console.error('[Import] Fatal:', err);
       importProgress.status = 'error';
