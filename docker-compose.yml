@@ -1,0 +1,15 @@
+version: '3.8'
+services:
+  postgres:
+    image: postgis/postgis:16-3.4
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: kpi_dashboard
+      POSTGRES_USER: kpi_user
+      POSTGRES_PASSWORD: kpi_password
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+volumes:
+  pgdata:
