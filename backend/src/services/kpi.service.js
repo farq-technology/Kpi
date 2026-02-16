@@ -13,8 +13,8 @@ class KpiService {
         COUNT(*) AS total_responses,
         COUNT(DISTINCT surveyor_username) AS unique_surveyors,
         AVG(compliance_score) AS avg_compliance,
-        SUM(CASE WHEN is_complete = 0 THEN 1 ELSE 0 END) AS incomplete_count,
-        SUM(CASE WHEN is_complete = 1 THEN 1 ELSE 0 END) AS complete_count
+        SUM(CASE WHEN NOT is_complete THEN 1 ELSE 0 END) AS incomplete_count,
+        SUM(CASE WHEN is_complete THEN 1 ELSE 0 END) AS complete_count
       FROM survey_responses ${where}
     `, params);
 
@@ -57,7 +57,7 @@ class KpiService {
         COUNT(*) AS total,
         COUNT(DISTINCT surveyor_username) AS surveyors,
         AVG(compliance_score) AS avg_compliance,
-        SUM(CASE WHEN is_complete = 0 THEN 1 ELSE 0 END) AS incomplete
+        SUM(CASE WHEN NOT is_complete THEN 1 ELSE 0 END) AS incomplete
       FROM survey_responses ${where}
       GROUP BY DATE_TRUNC('day', submitted_at)::DATE
       ORDER BY day ASC
@@ -113,8 +113,8 @@ class KpiService {
         surveyor_username AS agent,
         COUNT(*) AS total_submissions,
         AVG(compliance_score) AS avg_compliance,
-        SUM(CASE WHEN is_complete = 1 THEN 1 ELSE 0 END) AS complete,
-        SUM(CASE WHEN is_complete = 0 THEN 1 ELSE 0 END) AS incomplete,
+        SUM(CASE WHEN is_complete THEN 1 ELSE 0 END) AS complete,
+        SUM(CASE WHEN NOT is_complete THEN 1 ELSE 0 END) AS incomplete,
         COUNT(DISTINCT category) AS categories_covered
       FROM survey_responses
       WHERE surveyor_username IS NOT NULL AND surveyor_username != ''
@@ -144,7 +144,7 @@ class KpiService {
     const { rows } = await pool.query(`
       SELECT missing_fields
       FROM survey_responses
-      WHERE missing_fields IS NOT NULL AND missing_fields != '[]'
+      WHERE missing_fields IS NOT NULL AND missing_fields::TEXT != '[]' AND missing_fields::TEXT != '{}'
     `);
 
     const totalResult = await pool.query('SELECT COUNT(*) AS cnt FROM survey_responses');

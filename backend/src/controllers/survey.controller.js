@@ -29,7 +29,7 @@ async function listSurveys(req, res) {
       where += ` AND surveyor_username = $${params.length}`;
     }
     if (needsReview) {
-      where += ` AND (compliance_score < 80 OR compliance_score IS NULL OR is_complete = 0)`;
+      where += ` AND (compliance_score < 80 OR compliance_score IS NULL OR NOT is_complete)`;
     }
 
     const countQuery = `SELECT COUNT(*) FROM survey_responses ${where}`;
