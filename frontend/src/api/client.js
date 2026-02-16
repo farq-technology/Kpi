@@ -1,6 +1,7 @@
 import axios from 'axios';
 
-const API_BASE = import.meta.env.VITE_API_URL || '';
+const PROD_API = 'https://kpi-backend-zqfb.onrender.com';
+const API_BASE = import.meta.env.VITE_API_URL || (import.meta.env.PROD ? PROD_API : '');
 
 const client = axios.create({
   baseURL: `${API_BASE}/api/v1`,
