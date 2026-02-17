@@ -48,6 +48,8 @@ export default function SurveyTable({ data, pagination, onPageChange, onSearch }
               <th>{t('table.category')}</th>
               <th>{t('table.status')}</th>
               <th>{t('table.agent')}</th>
+              <th>{t('edit.workingDays') || 'Working Days'}</th>
+              <th>{t('edit.workingHours') || 'Working Hours'}</th>
               <th>{t('table.compliance')}</th>
               <th>{t('review.missingFields')}</th>
               <th>{t('table.date')}</th>
@@ -57,7 +59,7 @@ export default function SurveyTable({ data, pagination, onPageChange, onSearch }
           <tbody>
             {data.length === 0 ? (
               <tr>
-                <td colSpan="9" style={{ textAlign: 'center', padding: '32px' }}>
+                <td colSpan="11" style={{ textAlign: 'center', padding: '32px' }}>
                   {t('table.noData')}
                 </td>
               </tr>
@@ -77,6 +79,8 @@ export default function SurveyTable({ data, pagination, onPageChange, onSearch }
                     </span>
                   </td>
                   <td>{row.surveyor_username || '-'}</td>
+                  <td style={{ fontSize: '12px', whiteSpace: 'nowrap' }}>{row.working_days || '-'}</td>
+                  <td style={{ fontSize: '12px', whiteSpace: 'nowrap' }}>{row.working_hours || '-'}</td>
                   <td>
                     <span className={`badge ${getComplianceBadge(row.compliance_score)}`}>
                       {row.compliance_score ? `${Number(row.compliance_score).toFixed(0)}%` : '-'}

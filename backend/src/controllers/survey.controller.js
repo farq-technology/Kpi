@@ -47,6 +47,7 @@ async function listSurveys(req, res) {
         surveyor_username, poi_name_ar, poi_name_en,
         category, secondary_category, company_status,
         phone_number, website,
+        working_days, working_hours, break_time, holidays,
         latitude, longitude,
         is_complete, compliance_score,
         missing_fields,
@@ -268,7 +269,7 @@ async function updateSurvey(req, res) {
     const totalFields = allFieldValues.length;
     const filledFields = allFieldValues.filter(f => f && f !== '' && f !== 'N/A').length;
     const complianceScore = totalFields > 0 ? parseFloat(((filledFields / totalFields) * 100).toFixed(2)) : 0;
-    const isComplete = filledRequired === requiredFields.length;
+    const isComplete = filledRequired === requiredFields.length ? 1 : 0;
 
     params.push(complianceScore);
     setClauses.push(`compliance_score = $${params.length}`);
@@ -407,4 +408,21 @@ async function updateSurvey(req, res) {
   }
 }
 
-module.exports = { listSurveys, getSurveyById, getGeoJSON, updateSurvey };
+async function getFilterOptions(req, res) {
+  try {
+    const [catResult, agentResult] = await Promise.all([
+      pool.query(`SELECT DISTINCT category FROM survey_responses WHERE category IS NOT NULL AND category != '' ORDER BY category`),
+      pool.query(`SELECT DISTINCT surveyor_username FROM survey_responses WHERE surveyor_username IS NOT NULL AND surveyor_username != '' ORDER BY surveyor_username`),
+    ]);
+    res.json({
+      success: true,
+      categories: catResult.rows.map(r => r.category),
+      agents: agentResult.rows.map(r => r.surveyor_username),
+    });
+  } catch (err) {
+    console.error('Filter options error:', err);
+    res.status(500).json({ success: false, error: 'Failed to fetch filter options' });
+  }
+}
+
+module.exports = { listSurveys, getSurveyById, getGeoJSON, updateSurvey, getFilterOptions };
