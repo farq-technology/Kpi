@@ -235,4 +235,68 @@ router.post('/migrate', async (req, res) => {
   }
 });
 
+// POST /api/v1/admin/fix-columns - force add missing columns
+router.post('/fix-columns', async (req, res) => {
+  const secret = req.query.secret;
+  if (secret !== (config.webhookSecret || 'kpi-webhook-farq-2026')) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+
+  try {
+    const alterStatements = [
+      'ALTER TABLE survey_responses ADD COLUMN IF NOT EXISTS legal_name TEXT',
+      'ALTER TABLE survey_responses ADD COLUMN IF NOT EXISTS status_notes TEXT',
+      "ALTER TABLE survey_responses ADD COLUMN IF NOT EXISTS identity_correct VARCHAR(10)",
+      'ALTER TABLE survey_responses ADD COLUMN IF NOT EXISTS identity_notes TEXT',
+      'ALTER TABLE survey_responses ADD COLUMN IF NOT EXISTS entrance_description TEXT',
+      "ALTER TABLE survey_responses ADD COLUMN IF NOT EXISTS is_landmark VARCHAR(10)",
+      "ALTER TABLE survey_responses ADD COLUMN IF NOT EXISTS pickup_point_exists VARCHAR(10)",
+      'ALTER TABLE survey_responses ADD COLUMN IF NOT EXISTS pickup_description TEXT',
+      "ALTER TABLE survey_responses ADD COLUMN IF NOT EXISTS has_physical_menu VARCHAR(10)",
+      "ALTER TABLE survey_responses ADD COLUMN IF NOT EXISTS has_digital_menu VARCHAR(10)",
+      'ALTER TABLE survey_responses ADD COLUMN IF NOT EXISTS menu_barcode_url TEXT',
+      "ALTER TABLE survey_responses ADD COLUMN IF NOT EXISTS only_delivery VARCHAR(10)",
+      "ALTER TABLE survey_responses ADD COLUMN IF NOT EXISTS drive_thru VARCHAR(10)",
+      "ALTER TABLE survey_responses ADD COLUMN IF NOT EXISTS order_from_car VARCHAR(10)",
+      "ALTER TABLE survey_responses ADD COLUMN IF NOT EXISTS has_separate_rooms_for_dining VARCHAR(10)",
+      "ALTER TABLE survey_responses ADD COLUMN IF NOT EXISTS large_groups_can_be_seated VARCHAR(10)",
+      "ALTER TABLE survey_responses ADD COLUMN IF NOT EXISTS reservation VARCHAR(10)",
+      "ALTER TABLE survey_responses ADD COLUMN IF NOT EXISTS valet_parking VARCHAR(10)",
+      "ALTER TABLE survey_responses ADD COLUMN IF NOT EXISTS has_smoking_area VARCHAR(10)",
+      "ALTER TABLE survey_responses ADD COLUMN IF NOT EXISTS has_a_waiting_area VARCHAR(10)",
+      "ALTER TABLE survey_responses ADD COLUMN IF NOT EXISTS has_women_only_prayer_room VARCHAR(10)",
+      "ALTER TABLE survey_responses ADD COLUMN IF NOT EXISTS children_area VARCHAR(10)",
+      "ALTER TABLE survey_responses ADD COLUMN IF NOT EXISTS music VARCHAR(10)",
+      "ALTER TABLE survey_responses ADD COLUMN IF NOT EXISTS live_sport_broadcasting VARCHAR(10)",
+      "ALTER TABLE survey_responses ADD COLUMN IF NOT EXISTS shisha VARCHAR(10)",
+      "ALTER TABLE survey_responses ADD COLUMN IF NOT EXISTS provides_iftar_tent VARCHAR(10)",
+      "ALTER TABLE survey_responses ADD COLUMN IF NOT EXISTS require_ticket VARCHAR(10)",
+      "ALTER TABLE survey_responses ADD COLUMN IF NOT EXISTS is_free_entry VARCHAR(10)",
+      'ALTER TABLE survey_responses ADD COLUMN IF NOT EXISTS general_notes TEXT',
+    ];
+
+    const results = [];
+    for (const sql of alterStatements) {
+      try {
+        await pool.query(sql);
+        results.push({ sql: sql.substring(sql.indexOf('IF NOT EXISTS') + 14), status: 'ok' });
+      } catch (err) {
+        results.push({ sql: sql.substring(sql.indexOf('IF NOT EXISTS') + 14), status: 'error', error: err.message });
+      }
+    }
+
+    // Verify columns exist
+    const { rows } = await pool.query(`
+      SELECT column_name FROM information_schema.columns
+      WHERE table_name = 'survey_responses'
+      ORDER BY ordinal_position
+    `);
+    const columns = rows.map(r => r.column_name);
+
+    res.json({ success: true, results, totalColumns: columns.length, columns });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;
