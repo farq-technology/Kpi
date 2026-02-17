@@ -212,27 +212,4 @@ async function syncAllAttachments(req, res) {
   }
 }
 
-async function proxyArcGISAttachment(req, res) {
-  try {
-    const { objectId, attachmentId } = req.params;
-    const url = await arcgisService.getAttachmentUrl(objectId, attachmentId);
-
-    const response = await axios.get(url, {
-      responseType: 'stream',
-      timeout: 30000,
-    });
-
-    res.set('Content-Type', response.headers['content-type'] || 'application/octet-stream');
-    if (response.headers['content-length']) {
-      res.set('Content-Length', response.headers['content-length']);
-    }
-    res.set('Cache-Control', 'public, max-age=3600');
-
-    response.data.pipe(res);
-  } catch (err) {
-    console.error('ArcGIS proxy error:', err.message);
-    res.status(500).json({ error: 'Failed to proxy attachment' });
-  }
-}
-
-module.exports = { listMedia, downloadMedia, fetchAttachmentsFromArcGIS, syncAllAttachments, proxyArcGISAttachment };
+module.exports = { listMedia, downloadMedia, fetchAttachmentsFromArcGIS, syncAllAttachments };

@@ -1,10 +1,8 @@
 const database = require('../db/pool');
 const crypto = require('crypto');
-
-const REQUIRED_FIELDS = [
-  'name_ar', 'name_en', 'category', 'phone_number',
-  'working_days', 'working_hours_each_day', 'company_status',
-];
+const { arcgisToLocalMap } = require('../config/field-mappings');
+const { calculateCompliance } = require('../utils/compliance');
+const logger = require('../utils/logger');
 
 class WebhookService {
   async processWebhook(payload) {
@@ -24,8 +22,17 @@ class WebhookService {
       || attrs.globalid
       || crypto.randomUUID();
 
-    const { score, missingFields, totalFields, filledFields } = this.calculateCompliance(attrs);
-    const isComplete = missingFields.length === 0;
+    // Convert ArcGIS field names to local DB names for compliance calculation
+    const localRecord = {};
+    for (const [arcgisName, value] of Object.entries(attrs)) {
+      const localName = arcgisToLocalMap[arcgisName];
+      if (localName) localRecord[localName] = value;
+    }
+    const mediaCount = (feature.attachments && feature.attachments.length) || 0;
+    const { score, isComplete, missingFields, totalFields, filledFields } = calculateCompliance(localRecord, {
+      category: localRecord.category || attrs.category || '',
+      mediaCount,
+    });
 
     const submittedAt = attrs.CreationDate
       ? new Date(attrs.CreationDate).toISOString()
@@ -51,7 +58,7 @@ class WebhookService {
         );
         if (existing.rows.length > 0) surveyId = existing.rows[0].id;
       } catch (err) {
-        console.error('Survey upsert error:', err.message);
+        logger.error('Survey upsert error', { error: err.message });
       }
     }
 
@@ -120,25 +127,6 @@ class WebhookService {
     }
 
     return { id: responseId, objectId, globalId, isComplete, complianceScore: score };
-  }
-
-  calculateCompliance(attrs) {
-    const allFields = Object.keys(attrs).filter(k =>
-      !['objectid', 'globalid', 'CreationDate', 'Creator', 'EditDate', 'Editor'].includes(k)
-    );
-    const totalFields = allFields.length;
-    let filledFields = 0;
-    const missingFields = [];
-
-    for (const field of REQUIRED_FIELDS) {
-      if (!attrs[field] || attrs[field] === '') missingFields.push(field);
-    }
-    for (const field of allFields) {
-      if (attrs[field] !== null && attrs[field] !== undefined && attrs[field] !== '') filledFields++;
-    }
-
-    const score = totalFields > 0 ? parseFloat(((filledFields / totalFields) * 100).toFixed(2)) : 0;
-    return { score, missingFields, totalFields, filledFields };
   }
 
   async processAttachments(responseId, attachments) {

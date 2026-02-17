@@ -17,3 +17,9 @@ export const getFilterOptions = () =>
 
 export const getSurveyAttachments = (objectId) =>
   client.get(`/media/arcgis-attachments`, { params: { objectIds: objectId } });
+
+export const reviewSurvey = (id, { status, notes, reviewer }) =>
+  client.patch(`/surveys/${id}/review`, { status, notes, reviewer });
+
+export const batchReviewSurveys = ({ ids, status, notes, reviewer }) =>
+  client.post('/surveys/batch-review', { ids, status, notes, reviewer });

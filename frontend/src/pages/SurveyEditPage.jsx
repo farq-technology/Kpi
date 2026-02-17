@@ -1,28 +1,115 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
 import { getSurveyById, updateSurvey, getSurveyAttachments } from '../api/surveys.api';
 import { API_BASE } from '../api/client';
 import { getMediaDownloadUrl } from '../api/media.api';
+import { FormSkeleton } from '../components/common/Skeleton';
 
-const YES_NO = ['Yes', 'No'];
+const YES_NO = ['Yes', 'No', 'N/A'];
 
 const CATEGORIES = [
-  'Health & Medical', 'Finance & Insurance', 'Culture & Art', 'Life & Convenience',
-  'Services & Industry', 'Shopping & Distribution', 'Accommodation', 'Restaurants',
-  'Restaurant', 'Cafe', 'Bakery', 'Shopping', 'Retail', 'Electronics',
-  'Fashion & Clothing', 'Beauty & Spa', 'Pharmacy', 'Hospital', 'Hotel',
-  'Gym & Fitness', 'Education', 'Government', 'Bank', 'ATM', 'Gas Station',
-  'Mosque', 'Park', 'Entertainment', 'Supermarket', 'Mall / Shopping Center',
-  'Car Services', 'Real Estate', 'Logistics & Delivery', 'Telecom', 'Home Goods',
-  'Furniture', 'Travel & Tourism', 'Other',
+  { code: 'restaurant', label: 'مطعم (Restaurant)' },
+  { code: 'restaurants', label: 'مطاعم (Restaurants)' },
+  { code: 'cafe', label: 'مقهى (Cafe)' },
+  { code: 'bakery', label: 'مخبز (Bakery)' },
+  { code: 'supermarket', label: 'سوبرماركت (Supermarket)' },
+  { code: 'shopping', label: 'تسوق (Shopping)' },
+  { code: 'mall', label: 'مركز تسوق (Mall)' },
+  { code: 'retail', label: 'بيع بالتجزئة (Retail)' },
+  { code: 'electronics', label: 'إلكترونيات (Electronics)' },
+  { code: 'fashion', label: 'أزياء وملابس (Fashion & Clothing)' },
+  { code: 'beauty', label: 'جمال ومنتجع صحي (Beauty & Spa)' },
+  { code: 'pharmacy', label: 'صيدلية (Pharmacy)' },
+  { code: 'hospital', label: 'مستشفى (Hospital)' },
+  { code: 'health_medical', label: 'صحة وطب (Health & Medical)' },
+  { code: 'hotel', label: 'فندق (Hotel)' },
+  { code: 'accommodation', label: 'إقامة (Accommodation)' },
+  { code: 'gym', label: 'صالة رياضية (Gym & Fitness)' },
+  { code: 'education', label: 'تعليم (Education)' },
+  { code: 'government', label: 'حكومة (Government)' },
+  { code: 'bank', label: 'بنك (Bank)' },
+  { code: 'atm', label: 'صراف آلي (ATM)' },
+  { code: 'finance_insurance', label: 'تمويل وتأمين (Finance & Insurance)' },
+  { code: 'gas_station', label: 'محطة وقود (Gas Station)' },
+  { code: 'mosque', label: 'مسجد (Mosque)' },
+  { code: 'park', label: 'حديقة (Park)' },
+  { code: 'entertainment', label: 'ترفيه (Entertainment)' },
+  { code: 'culture_art', label: 'ثقافة وفن (Culture & Art)' },
+  { code: 'car_services', label: 'خدمات سيارات (Car Services)' },
+  { code: 'real_estate', label: 'عقارات (Real Estate)' },
+  { code: 'logistics', label: 'لوجستيات وتوصيل (Logistics & Delivery)' },
+  { code: 'telecom', label: 'اتصالات (Telecom)' },
+  { code: 'home_goods', label: 'مستلزمات منزلية (Home Goods)' },
+  { code: 'furniture', label: 'أثاث (Furniture)' },
+  { code: 'travel', label: 'سفر وسياحة (Travel & Tourism)' },
+  { code: 'life_convenience', label: 'حياة ومعيشة (Life & Convenience)' },
+  { code: 'services_industry', label: 'خدمات وصناعة (Services & Industry)' },
+  { code: 'shopping_distribution', label: 'تسوق وتوزيع (Shopping & Distribution)' },
+  { code: 'other', label: 'أخرى (Other)' },
+];
+
+const SECONDARY_CATEGORIES = [
+  { code: 'saudi_cuisine', label: 'مأكولات سعودية (Saudi Cuisine)' },
+  { code: 'lebanese_cuisine', label: 'مأكولات لبنانية (Lebanese)' },
+  { code: 'indian_cuisine', label: 'مأكولات هندية (Indian)' },
+  { code: 'pakistani_cuisine', label: 'مأكولات باكستانية (Pakistani)' },
+  { code: 'turkish_cuisine', label: 'مأكولات تركية (Turkish)' },
+  { code: 'italian_cuisine', label: 'مأكولات إيطالية (Italian)' },
+  { code: 'fast_food', label: 'وجبات سريعة (Fast Food)' },
+  { code: 'seafood', label: 'مأكولات بحرية (Seafood)' },
+  { code: 'grills', label: 'مشويات (Grills)' },
+  { code: 'international', label: 'مأكولات عالمية (International)' },
+  { code: 'asian_cuisine', label: 'مأكولات آسيوية (Asian)' },
+  { code: 'coffee_shop', label: 'قهوة (Coffee Shop)' },
+  { code: 'juice_bar', label: 'عصائر (Juice Bar)' },
+  { code: 'desserts', label: 'حلويات (Desserts)' },
+  { code: 'clothing', label: 'ملابس (Clothing)' },
+  { code: 'electronics_sub', label: 'إلكترونيات (Electronics)' },
+  { code: 'grocery', label: 'بقالة (Grocery)' },
+  { code: 'clinic', label: 'عيادة (Clinic)' },
+  { code: 'salon', label: 'صالون (Salon)' },
+  { code: 'laundry', label: 'مغسلة (Laundry)' },
+  { code: 'other', label: 'أخرى (Other)' },
 ];
 
 const STATUS_OPTIONS = [
-  'Open', 'Permanently Closed', 'Temporarily Closed',
-  'Under Construction', 'Coming Soon', 'Relocated',
+  { code: 'Open', label: 'مفتوح (Open)' },
+  { code: 'Permanently Closed', label: 'مغلق نهائياً (Permanently Closed)' },
+  { code: 'Temporarily Closed', label: 'مغلق مؤقتاً (Temporarily Closed)' },
+  { code: 'Under Construction', label: 'تحت الإنشاء (Under Construction)' },
+  { code: 'Coming Soon', label: 'قريباً (Coming Soon)' },
+  { code: 'Relocated', label: 'انتقل (Relocated)' },
 ];
+
+// Food-related categories where dining fields apply
+const FOOD_CATEGORIES = new Set([
+  'restaurant', 'restaurants', 'cafe', 'bakery',
+  'مطعم', 'مطاعم', 'مقهى', 'مخبز',
+]);
+
+// Yes/No fields that only apply to food/dining categories
+const DINING_ONLY_FIELDS = new Set([
+  'dine_in', 'only_delivery', 'drive_thru', 'order_from_car',
+  'has_family_seating', 'has_separate_rooms_for_dining',
+  'large_groups_can_be_seated', 'reservation',
+  'has_physical_menu', 'has_digital_menu',
+  'offers_iftar_menu', 'is_open_during_suhoor', 'provides_iftar_tent',
+  'shisha', 'music', 'live_sport_broadcasting',
+]);
+
+function getCategoryDefaults(category, currentForm) {
+  const defaults = {};
+  const isFood = FOOD_CATEGORIES.has(category);
+  for (const field of DINING_ONLY_FIELDS) {
+    const val = currentForm[field];
+    if (!val || val === '' || val === '--') {
+      defaults[field] = isFood ? '' : 'N/A';
+    }
+  }
+  return defaults;
+}
 
 const FLOOR_OPTIONS = [
   'Basement -2', 'Basement -1', 'Ground Floor', 'Mezzanine',
@@ -89,7 +176,7 @@ const PAYMENT_OPTIONS = [
 const LANGUAGE_OPTIONS = [
   { code: 'arabic', label: 'Arabic' },
   { code: 'english', label: 'English' },
-  { code: 'arabic,english', label: 'Arabic & English' },
+  { code: 'arabic_english', label: 'Arabic & English' },
   { code: 'urdu', label: 'Urdu' },
   { code: 'hindi', label: 'Hindi' },
   { code: 'tagalog', label: 'Tagalog' },
@@ -103,9 +190,9 @@ const FIELD_GROUPS = [
       { key: 'poi_name_ar', labelKey: 'edit.nameAr', type: 'text' },
       { key: 'poi_name_en', labelKey: 'edit.nameEn', type: 'text' },
       { key: 'legal_name', labelKey: 'edit.legalName', type: 'text' },
-      { key: 'category', labelKey: 'edit.verifiedCategory', type: 'select', options: CATEGORIES },
-      { key: 'secondary_category', labelKey: 'edit.secondaryCategory', type: 'text' },
-      { key: 'company_status', labelKey: 'edit.verifiedStatus', type: 'select', options: STATUS_OPTIONS },
+      { key: 'category', labelKey: 'edit.verifiedCategory', type: 'coded_select', options: CATEGORIES },
+      { key: 'secondary_category', labelKey: 'edit.secondaryCategory', type: 'coded_select', options: SECONDARY_CATEGORIES },
+      { key: 'company_status', labelKey: 'edit.verifiedStatus', type: 'coded_select', options: STATUS_OPTIONS },
       { key: 'status_notes', labelKey: 'edit.statusNotes', type: 'text' },
       { key: 'identity_correct', labelKey: 'edit.identityCorrect', type: 'select', options: YES_NO },
       { key: 'identity_notes', labelKey: 'edit.identityNotes', type: 'text' },
@@ -144,9 +231,9 @@ const FIELD_GROUPS = [
   {
     titleKey: 'edit.workingInfo',
     fields: [
-      { key: 'working_days', labelKey: 'edit.workingDays', type: 'coded_select', options: WORKING_DAYS_OPTIONS },
-      { key: 'working_hours', labelKey: 'edit.workingHours', type: 'coded_select', options: WORKING_HOURS_OPTIONS },
-      { key: 'break_time', labelKey: 'edit.breakTime', type: 'coded_select', options: BREAK_TIME_OPTIONS },
+      { key: 'working_days', labelKey: 'edit.workingDays', type: 'coded_select_custom', options: WORKING_DAYS_OPTIONS, customCode: 'custom_days', customPlaceholder: 'e.g. Sun, Mon, Wed, Fri' },
+      { key: 'working_hours', labelKey: 'edit.workingHours', type: 'coded_select_custom', options: WORKING_HOURS_OPTIONS, customCode: 'custom_hours', customPlaceholder: 'e.g. 10 AM - 2 PM, 5 PM - 11 PM' },
+      { key: 'break_time', labelKey: 'edit.breakTime', type: 'coded_select_custom', options: BREAK_TIME_OPTIONS, customCode: 'custom_break', customPlaceholder: 'e.g. 3 PM - 5 PM' },
       { key: 'holidays', labelKey: 'edit.holidays', type: 'multi_select', options: HOLIDAYS_OPTIONS },
     ],
   },
@@ -218,6 +305,11 @@ const FIELD_GROUPS = [
 
 const ALL_FIELD_KEYS = FIELD_GROUPS.flatMap(g => g.fields.map(f => f.key));
 
+const REQUIRED_FIELDS = new Set([
+  'poi_name_ar', 'poi_name_en', 'category',
+  'company_status', 'phone_number', 'working_days', 'working_hours',
+]);
+
 export default function SurveyEditPage() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -230,6 +322,13 @@ export default function SurveyEditPage() {
   const [media, setMedia] = useState([]);
   const [mediaLoading, setMediaLoading] = useState(false);
   const [selectedImage, setSelectedImage] = useState(null);
+  const [validationErrors, setValidationErrors] = useState({});
+  const [showLeaveModal, setShowLeaveModal] = useState(false);
+  const [saveState, setSaveState] = useState('idle'); // idle | saving | success | error
+  const pendingNavigationRef = useRef(null);
+
+  // Track if form has unsaved changes for beforeunload
+  const hasChangesRef = useRef(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -244,6 +343,12 @@ export default function SurveyEditPage() {
         ALL_FIELD_KEYS.forEach(key => {
           initial[key] = data[key] ?? attrs[key] ?? '';
         });
+
+        // Apply category-based N/A defaults for empty yes/no fields
+        const category = initial.category || '';
+        const defaults = getCategoryDefaults(category, initial);
+        Object.assign(initial, defaults);
+
         setForm(initial);
 
         // Fetch media: first check local DB, then ArcGIS
@@ -290,8 +395,78 @@ export default function SurveyEditPage() {
     fetchData();
   }, [id, t]);
 
+  // Keep hasChangesRef in sync
+  useEffect(() => {
+    if (!original) return;
+    const count = Object.keys(getChangedFields()).length;
+    hasChangesRef.current = count > 0;
+  });
+
+  // Browser tab close / refresh guard
+  useEffect(() => {
+    const handler = (e) => {
+      if (hasChangesRef.current) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, []);
+
+  // Guarded navigation - wraps navigate to show modal if changes exist
+  const guardedNavigate = useCallback((to) => {
+    if (hasChangesRef.current) {
+      pendingNavigationRef.current = to;
+      setShowLeaveModal(true);
+    } else {
+      navigate(to);
+    }
+  }, [navigate]);
+
+  const confirmLeave = () => {
+    setShowLeaveModal(false);
+    if (pendingNavigationRef.current) {
+      navigate(pendingNavigationRef.current);
+      pendingNavigationRef.current = null;
+    }
+  };
+
+  const cancelLeave = () => {
+    setShowLeaveModal(false);
+    pendingNavigationRef.current = null;
+  };
+
+  // Validate required fields, returns true if valid
+  const validateForm = () => {
+    const errors = {};
+    for (const field of REQUIRED_FIELDS) {
+      if (!form[field] || form[field] === '' || form[field] === '--') {
+        errors[field] = t('edit.fieldRequired', 'This field is required');
+      }
+    }
+    setValidationErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
   const handleChange = (key, value) => {
-    setForm(prev => ({ ...prev, [key]: value }));
+    // Clear validation error for this field when user edits it
+    if (validationErrors[key]) {
+      setValidationErrors(prev => {
+        const next = { ...prev };
+        delete next[key];
+        return next;
+      });
+    }
+    setForm(prev => {
+      const next = { ...prev, [key]: value };
+      // When category changes, apply N/A defaults for irrelevant fields
+      if (key === 'category') {
+        const defaults = getCategoryDefaults(value, next);
+        Object.assign(next, defaults);
+      }
+      return next;
+    });
   };
 
   const getChangedFields = () => {
@@ -306,7 +481,21 @@ export default function SurveyEditPage() {
     return changed;
   };
 
+  const getSaveButtonProps = (count) => {
+    if (saveState === 'saving') return { cls: 'btn btn-primary btn-saving', text: t('edit.saving', 'Saving...'), disabled: true };
+    if (saveState === 'success') return { cls: 'btn btn-success', text: t('edit.saved', 'Saved!'), disabled: true };
+    if (saveState === 'error') return { cls: 'btn btn-danger', text: t('edit.saveFailed', 'Failed'), disabled: false };
+    if (count === 0) return { cls: 'btn btn-primary', text: t('edit.noChangesBtn', 'No Changes'), disabled: true };
+    return { cls: 'btn btn-primary', text: `${t('edit.saveAndSync')} (${count})`, disabled: false };
+  };
+
   const handleSave = async () => {
+    // Validate required fields first
+    if (!validateForm()) {
+      toast.error(t('edit.fixValidation', 'Please fill all required fields'));
+      return;
+    }
+
     const changed = getChangedFields();
     if (Object.keys(changed).length === 0) {
       toast(t('edit.noChanges'), { icon: '\u2139\uFE0F' });
@@ -314,6 +503,7 @@ export default function SurveyEditPage() {
     }
 
     setSaving(true);
+    setSaveState('saving');
     setSyncResult(null);
     try {
       const result = await updateSurvey(id, changed);
@@ -325,28 +515,36 @@ export default function SurveyEditPage() {
       });
       setForm(updated);
 
+      setSaveState('success');
       if (result.arcgisSync?.synced) {
-        toast.success(t('edit.savedAndSynced'));
+        toast.success(t('edit.savedAndSynced', 'Changes saved and synced'));
       } else {
-        toast.success(t('edit.savedLocally'));
+        toast(t('edit.savedLocally', 'Saved locally. ArcGIS sync pending.'), {
+          icon: '\u26A0\uFE0F',
+          duration: 5000,
+        });
       }
+      setTimeout(() => setSaveState('idle'), 2000);
     } catch (err) {
       console.error('Error saving:', err);
-      toast.error(t('edit.saveFailed'));
+      setSaveState('error');
+      toast.error(t('edit.saveFailed', 'Failed to save. Please try again.'), { duration: 0 });
+      setTimeout(() => setSaveState('idle'), 2000);
     } finally {
       setSaving(false);
     }
   };
 
-  if (loading) return <div className="loading-container"><div className="spinner" /></div>;
+  if (loading) return <FormSkeleton />;
   if (!original) return <div className="loading-container">{t('table.noData')}</div>;
 
   const changedCount = Object.keys(getChangedFields()).length;
+  const saveBtnProps = getSaveButtonProps(changedCount);
 
   return (
     <div className="edit-page">
       <div className="edit-header">
-        <button className="btn" onClick={() => navigate(`/surveys/${id}`)}>
+        <button className="btn" onClick={() => guardedNavigate(`/surveys/${id}`)}>
           &rarr; {t('edit.backToDetail')}
         </button>
         <h2>{t('edit.title')}: {original.poi_name_ar || original.poi_name_en}</h2>
@@ -357,11 +555,11 @@ export default function SurveyEditPage() {
             </span>
           )}
           <button
-            className="btn btn-primary"
+            className={saveBtnProps.cls}
             onClick={handleSave}
-            disabled={saving || changedCount === 0}
+            disabled={saveBtnProps.disabled}
           >
-            {saving ? t('edit.saving') : t('edit.saveAndSync')}
+            {saveBtnProps.text}
           </button>
         </div>
       </div>
@@ -485,9 +683,14 @@ export default function SurveyEditPage() {
             <h3>{t(group.titleKey)}</h3>
             {group.fields.map(field => {
               const isChanged = String(form[field.key] ?? '') !== String(original[field.key] ?? '');
+              const isRequired = REQUIRED_FIELDS.has(field.key);
+              const hasError = !!validationErrors[field.key];
               return (
-                <div key={field.key} className={`edit-field ${isChanged ? 'changed' : ''}`}>
-                  <label>{t(field.labelKey)}</label>
+                <div key={field.key} className={`edit-field ${isChanged ? 'changed' : ''} ${hasError ? 'field-error' : ''}`}>
+                  <label>
+                    {t(field.labelKey)}
+                    {isRequired && <span className="required-star">*</span>}
+                  </label>
                   {field.type === 'select' ? (
                     <select
                       value={form[field.key] || ''}
@@ -498,12 +701,50 @@ export default function SurveyEditPage() {
                         <option key={opt} value={opt}>{opt}</option>
                       ))}
                     </select>
-                  ) : field.type === 'coded_select' ? (
+                  ) : field.type === 'coded_select_custom' ? (() => {
+                    const currentVal = form[field.key] || '';
+                    const isPreset = field.options.some(o => o.code === currentVal);
+                    const isCustom = currentVal === field.customCode || (!isPreset && currentVal !== '');
+                    const selectVal = isCustom ? field.customCode : currentVal;
+                    return (
+                      <div>
+                        <select
+                          value={selectVal}
+                          onChange={e => {
+                            const v = e.target.value;
+                            if (v === field.customCode) {
+                              handleChange(field.key, field.customCode);
+                            } else {
+                              handleChange(field.key, v);
+                            }
+                          }}
+                        >
+                          <option value="">--</option>
+                          {field.options.map(opt => (
+                            <option key={opt.code} value={opt.code}>{opt.label}</option>
+                          ))}
+                        </select>
+                        {isCustom && (
+                          <input
+                            type="text"
+                            value={currentVal === field.customCode ? '' : currentVal}
+                            onChange={e => handleChange(field.key, e.target.value || field.customCode)}
+                            placeholder={field.customPlaceholder || 'Enter custom value...'}
+                            style={{ marginTop: '6px', width: '100%' }}
+                          />
+                        )}
+                      </div>
+                    );
+                  })()
+                  : field.type === 'coded_select' ? (
                     <select
                       value={form[field.key] || ''}
                       onChange={e => handleChange(field.key, e.target.value)}
                     >
                       <option value="">--</option>
+                      {form[field.key] && !field.options.some(o => o.code === form[field.key]) && (
+                        <option value={form[field.key]}>{form[field.key]}</option>
+                      )}
                       {field.options.map(opt => (
                         <option key={opt.code} value={opt.code}>{opt.label}</option>
                       ))}
@@ -533,6 +774,10 @@ export default function SurveyEditPage() {
                           </button>
                         );
                       })}
+                      {(() => {
+                        const count = (form[field.key] || '').split(',').filter(Boolean).length;
+                        return count > 0 ? <span className="chip-count">{count} {t('edit.selected', 'selected')}</span> : null;
+                      })()}
                     </div>
                   ) : field.type === 'textarea' ? (
                     <textarea
@@ -553,6 +798,9 @@ export default function SurveyEditPage() {
                       {t('edit.was')}: {String(original[field.key])}
                     </small>
                   )}
+                  {hasError && (
+                    <span className="field-error-msg">{validationErrors[field.key]}</span>
+                  )}
                 </div>
               );
             })}
@@ -561,17 +809,35 @@ export default function SurveyEditPage() {
       </div>
 
       <div className="edit-footer">
-        <button className="btn" onClick={() => navigate(`/surveys/${id}`)}>
+        <button className="btn" onClick={() => guardedNavigate(`/surveys/${id}`)}>
           {t('edit.cancel')}
         </button>
         <button
-          className="btn btn-primary"
+          className={saveBtnProps.cls}
           onClick={handleSave}
-          disabled={saving || changedCount === 0}
+          disabled={saveBtnProps.disabled}
         >
-          {saving ? t('edit.saving') : t('edit.saveAndSync')}
+          {saveBtnProps.text}
         </button>
       </div>
+
+      {/* Unsaved changes confirmation modal */}
+      {showLeaveModal && (
+        <div className="modal-backdrop" onClick={cancelLeave}>
+          <div className="modal" onClick={e => e.stopPropagation()}>
+            <h3>{t('edit.unsavedTitle', 'Unsaved Changes')}</h3>
+            <p>{t('edit.unsavedMessage', 'You have unsaved changes. Are you sure you want to leave?')}</p>
+            <div className="modal-actions">
+              <button className="btn" onClick={cancelLeave}>
+                {t('edit.stayOnPage', 'Stay')}
+              </button>
+              <button className="btn btn-danger" onClick={confirmLeave}>
+                {t('edit.leavePage', 'Leave')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -35,7 +35,8 @@ async function getWeekly(req, res) {
 
 async function getCategories(req, res) {
   try {
-    const categories = await kpiService.getCategoryDistribution();
+    const { from, to } = req.query;
+    const categories = await kpiService.getCategoryDistribution(from, to);
     res.json({ success: true, data: categories });
   } catch (err) {
     res.status(500).json({ success: false, error: 'Failed to fetch categories' });
@@ -44,7 +45,8 @@ async function getCategories(req, res) {
 
 async function getAgentPerformance(req, res) {
   try {
-    const agents = await kpiService.getAgentPerformance();
+    const { from, to } = req.query;
+    const agents = await kpiService.getAgentPerformance(from, to);
     res.json({ success: true, data: agents });
   } catch (err) {
     res.status(500).json({ success: false, error: 'Failed to fetch agent performance' });
@@ -53,7 +55,8 @@ async function getAgentPerformance(req, res) {
 
 async function getStatusDistribution(req, res) {
   try {
-    const statuses = await kpiService.getStatusDistribution();
+    const { from, to } = req.query;
+    const statuses = await kpiService.getStatusDistribution(from, to);
     res.json({ success: true, data: statuses });
   } catch (err) {
     res.status(500).json({ success: false, error: 'Failed to fetch status distribution' });
@@ -62,7 +65,8 @@ async function getStatusDistribution(req, res) {
 
 async function getMissingFields(req, res) {
   try {
-    const data = await kpiService.getTopMissingFields();
+    const { from, to } = req.query;
+    const data = await kpiService.getTopMissingFields(from, to);
     res.json({ success: true, data });
   } catch (err) {
     res.status(500).json({ success: false, error: 'Failed to fetch missing fields' });

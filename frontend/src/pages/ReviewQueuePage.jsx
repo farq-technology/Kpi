@@ -1,7 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import toast from 'react-hot-toast';
 import { useSurveys } from '../hooks/useSurveys';
+import { reviewSurvey } from '../api/surveys.api';
 import { Icon, Badge, ComplianceBar, CircleProgress, tokens } from '../components/review';
 
 function parseMissingFields(mf) {
@@ -43,7 +45,9 @@ export default function ReviewQueuePage() {
   const [selectedId, setSelectedId] = useState(null);
   const [reviewStatuses, setReviewStatuses] = useState({});
   const [search, setSearch] = useState('');
-  const [showKeyboard, setShowKeyboard] = useState(false);
+  const [rejectNotes, setRejectNotes] = useState('');
+  const [showRejectInput, setShowRejectInput] = useState(false);
+  const [actionLoading, setActionLoading] = useState(false);
 
   const { data, pagination, loading } = useSurveys({
     page: 1,
@@ -67,21 +71,42 @@ export default function ReviewQueuePage() {
   const selectedIndex = filtered.findIndex((s) => s.id === selectedId);
   const selected = filtered.find((s) => s.id === selectedId);
 
-  const handleAction = useCallback((id, action) => {
-    setReviewStatuses((prev) => ({ ...prev, [id]: action }));
+  const handleAction = useCallback(async (id, action, notes) => {
     if (action === 'edit') {
       navigate(`/surveys/${id}/edit`);
       return;
     }
-    setSelectedId((prevId) => {
-      const idx = filtered.findIndex((s) => s.id === id);
-      return idx < filtered.length - 1 ? filtered[idx + 1].id : prevId;
-    });
-  }, [navigate, filtered]);
+
+    setActionLoading(true);
+    try {
+      await reviewSurvey(id, { status: action, notes: notes || undefined });
+      setReviewStatuses((prev) => ({ ...prev, [id]: action }));
+      setShowRejectInput(false);
+      setRejectNotes('');
+
+      if (action === 'approved') {
+        toast.success(t('review.approvedSuccess', 'Survey approved'));
+      } else if (action === 'rejected') {
+        toast.success(t('review.rejectedSuccess', 'Survey rejected'));
+      }
+
+      // Auto-advance to next
+      setSelectedId((prevId) => {
+        const idx = filtered.findIndex((s) => s.id === id);
+        return idx < filtered.length - 1 ? filtered[idx + 1].id : prevId;
+      });
+    } catch (err) {
+      console.error('Review action failed:', err);
+      toast.error(t('review.actionFailed', 'Review action failed'));
+    } finally {
+      setActionLoading(false);
+    }
+  }, [navigate, filtered, t]);
 
   useEffect(() => {
     const handler = (e) => {
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+      if (actionLoading) return;
       if (e.key === 'n' || e.key === 'N') {
         if (selectedIndex < filtered.length - 1) setSelectedId(filtered[selectedIndex + 1].id);
       }
@@ -90,10 +115,11 @@ export default function ReviewQueuePage() {
       }
       if ((e.key === 'a' || e.key === 'A') && selectedId) handleAction(selectedId, 'approved');
       if ((e.key === 'e' || e.key === 'E') && selectedId) handleAction(selectedId, 'edit');
+      if ((e.key === 'r' || e.key === 'R') && selectedId) setShowRejectInput(true);
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [selectedIndex, filtered, selectedId, handleAction]);
+  }, [selectedIndex, filtered, selectedId, handleAction, actionLoading]);
 
   if (loading) {
     return (
@@ -213,62 +239,46 @@ export default function ReviewQueuePage() {
             </button>
           ))}
         </div>
-        <button
-          onClick={() => setShowKeyboard(!showKeyboard)}
-          style={{
-            border: `1px solid ${tokens.border}`,
-            background: tokens.cardBg,
-            borderRadius: 8,
-            padding: '7px 10px',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 4,
-            color: tokens.textMuted,
-            fontSize: '0.72rem',
-          }}
-          title={t('review.keyboardHint')}
-        >
-          <Icon name="keyboard" size={16} color={tokens.textMuted} />
-        </button>
       </div>
 
-      {showKeyboard && (
-        <div
-          style={{
-            background: tokens.sidebar,
-            color: 'rgba(255,255,255,0.9)',
-            padding: '10px 16px',
-            borderRadius: 10,
-            fontSize: '0.75rem',
-            display: 'flex',
-            gap: 20,
-            flexWrap: 'wrap',
-          }}
-        >
-          {[
-            ['N', t('review.next')],
-            ['P', t('review.prev')],
-            ['A', t('review.approve')],
-            ['E', t('review.edit')],
-          ].map(([key, label]) => (
-            <span key={key} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <kbd
-                style={{
-                  background: 'rgba(255,255,255,0.15)',
-                  padding: '2px 8px',
-                  borderRadius: 4,
-                  fontWeight: 700,
-                  fontSize: '0.7rem',
-                }}
-              >
-                {key}
-              </kbd>
-              {label}
-            </span>
-          ))}
-        </div>
-      )}
+      {/* Always-visible keyboard shortcuts bar */}
+      <div
+        style={{
+          background: tokens.sidebar,
+          color: 'rgba(255,255,255,0.9)',
+          padding: '8px 16px',
+          borderRadius: 10,
+          fontSize: '0.75rem',
+          display: 'flex',
+          gap: 16,
+          flexWrap: 'wrap',
+          alignItems: 'center',
+        }}
+      >
+        <Icon name="keyboard" size={14} color="rgba(255,255,255,0.5)" />
+        {[
+          ['N', t('review.next')],
+          ['P', t('review.prev')],
+          ['A', t('review.approve')],
+          ['R', t('review.reject', 'Reject')],
+          ['E', t('review.edit')],
+        ].map(([key, label]) => (
+          <span key={key} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+            <kbd
+              style={{
+                background: 'rgba(255,255,255,0.15)',
+                padding: '2px 8px',
+                borderRadius: 4,
+                fontWeight: 700,
+                fontSize: '0.7rem',
+              }}
+            >
+              {key}
+            </kbd>
+            {label}
+          </span>
+        ))}
+      </div>
 
       <div
         style={{
@@ -541,9 +551,55 @@ export default function ReviewQueuePage() {
                 </div>
               </div>
             )}
+            {/* Reject notes textarea */}
+            {showRejectInput && (
+              <div style={{ marginBottom: 12 }}>
+                <textarea
+                  value={rejectNotes}
+                  onChange={(e) => setRejectNotes(e.target.value)}
+                  placeholder={t('review.rejectReason', 'Reason for rejection...')}
+                  rows={3}
+                  style={{
+                    width: '100%',
+                    padding: '10px 12px',
+                    borderRadius: 8,
+                    border: `1.5px solid ${tokens.danger}`,
+                    fontSize: '0.82rem',
+                    fontFamily: 'inherit',
+                    resize: 'vertical',
+                    marginBottom: 8,
+                  }}
+                  autoFocus
+                />
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button
+                    onClick={() => handleAction(selected.id, 'rejected', rejectNotes)}
+                    disabled={actionLoading}
+                    style={{
+                      flex: 1, padding: '8px', borderRadius: 8,
+                      border: 'none', background: tokens.danger, color: '#fff',
+                      fontWeight: 700, fontSize: '0.8rem', cursor: 'pointer',
+                    }}
+                  >
+                    {actionLoading ? '...' : t('review.confirmReject', 'Confirm Reject')}
+                  </button>
+                  <button
+                    onClick={() => { setShowRejectInput(false); setRejectNotes(''); }}
+                    style={{
+                      padding: '8px 14px', borderRadius: 8,
+                      border: `1px solid ${tokens.border}`, background: 'transparent',
+                      fontSize: '0.8rem', cursor: 'pointer',
+                    }}
+                  >
+                    {t('edit.cancel', 'Cancel')}
+                  </button>
+                </div>
+              </div>
+            )}
             <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
               <button
                 onClick={() => handleAction(selected.id, 'approved')}
+                disabled={actionLoading}
                 style={{
                   flex: 1,
                   padding: '10px',
@@ -553,15 +609,14 @@ export default function ReviewQueuePage() {
                   color: '#fff',
                   fontWeight: 700,
                   fontSize: '0.82rem',
-                  cursor: 'pointer',
+                  cursor: actionLoading ? 'not-allowed' : 'pointer',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   gap: 6,
                   transition: 'all 0.15s',
+                  opacity: actionLoading ? 0.6 : 1,
                 }}
-                onMouseEnter={(e) => (e.currentTarget.style.opacity = '0.9')}
-                onMouseLeave={(e) => (e.currentTarget.style.opacity = '1')}
               >
                 <Icon name="check" size={16} color="#fff" />
                 {t('review.approve')}
@@ -589,13 +644,14 @@ export default function ReviewQueuePage() {
                 {t('review.edit')}
               </button>
               <button
-                onClick={() => handleAction(selected.id, 'rejected')}
+                onClick={() => setShowRejectInput(!showRejectInput)}
+                disabled={actionLoading}
                 style={{
                   padding: '10px 16px',
                   borderRadius: 10,
                   border: `1.5px solid ${tokens.danger}`,
-                  background: 'transparent',
-                  color: tokens.danger,
+                  background: showRejectInput ? tokens.danger : 'transparent',
+                  color: showRejectInput ? '#fff' : tokens.danger,
                   fontWeight: 700,
                   fontSize: '0.82rem',
                   cursor: 'pointer',
@@ -606,7 +662,7 @@ export default function ReviewQueuePage() {
                   transition: 'all 0.15s',
                 }}
               >
-                <Icon name="x" size={16} color={tokens.danger} />
+                <Icon name="x" size={16} color={showRejectInput ? '#fff' : tokens.danger} />
               </button>
             </div>
             <div style={{ display: 'flex', gap: 8 }}>

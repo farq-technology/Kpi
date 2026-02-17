@@ -2,11 +2,20 @@ const pool = require('../db/pool');
 const arcgisService = require('./arcgis.service');
 
 class KpiService {
-  async getSummary(dateFrom, dateTo) {
+  /**
+   * Build a reusable WHERE clause + params from optional date range.
+   */
+  _dateFilter(dateFrom, dateTo, prefix = '') {
+    const col = prefix ? `${prefix}submitted_at` : 'submitted_at';
     const params = [];
     let where = 'WHERE 1=1';
-    if (dateFrom) { params.push(dateFrom); where += ` AND submitted_at >= $${params.length}`; }
-    if (dateTo) { params.push(dateTo); where += ` AND submitted_at <= $${params.length}`; }
+    if (dateFrom) { params.push(dateFrom); where += ` AND ${col} >= $${params.length}`; }
+    if (dateTo)   { params.push(dateTo);   where += ` AND ${col} <= $${params.length}`; }
+    return { where, params };
+  }
+
+  async getSummary(dateFrom, dateTo) {
+    const { where, params } = this._dateFilter(dateFrom, dateTo);
 
     const { rows } = await pool.query(`
       SELECT
@@ -21,14 +30,21 @@ class KpiService {
     const s = rows[0];
     const total = parseInt(s.total_responses) || 0;
 
-    // Media query - simplified
+    // Media query – JOIN with survey_responses so date filter applies
+    const mediaParams = [];
+    let mediaWhere = 'WHERE 1=1';
+    if (dateFrom) { mediaParams.push(dateFrom); mediaWhere += ` AND sr.submitted_at >= $${mediaParams.length}`; }
+    if (dateTo)   { mediaParams.push(dateTo);   mediaWhere += ` AND sr.submitted_at <= $${mediaParams.length}`; }
+
     const { rows: mediaRows } = await pool.query(`
       SELECT
         COUNT(DISTINCT ma.response_id) AS responses_with_media,
         SUM(CASE WHEN ma.media_category = 'image' THEN 1 ELSE 0 END) AS total_images,
         SUM(CASE WHEN ma.media_category = 'video' THEN 1 ELSE 0 END) AS total_videos
       FROM media_attachments ma
-    `, []);
+      INNER JOIN survey_responses sr ON sr.id = ma.response_id
+      ${mediaWhere}
+    `, mediaParams);
 
     const m = mediaRows[0];
     const responsesWithMedia = parseInt(m.responses_with_media) || 0;
@@ -97,17 +113,19 @@ class KpiService {
     }));
   }
 
-  async getCategoryDistribution() {
+  async getCategoryDistribution(dateFrom, dateTo) {
+    const { where, params } = this._dateFilter(dateFrom, dateTo);
     const { rows } = await pool.query(`
       SELECT category, COUNT(*) AS count
       FROM survey_responses
-      WHERE category IS NOT NULL AND category != ''
+      ${where} AND category IS NOT NULL AND category != ''
       GROUP BY category ORDER BY count DESC
-    `);
+    `, params);
     return rows;
   }
 
-  async getAgentPerformance() {
+  async getAgentPerformance(dateFrom, dateTo) {
+    const { where, params } = this._dateFilter(dateFrom, dateTo);
     const { rows } = await pool.query(`
       SELECT
         surveyor_username AS agent,
@@ -117,9 +135,9 @@ class KpiService {
         SUM(CASE WHEN NOT is_complete THEN 1 ELSE 0 END) AS incomplete,
         COUNT(DISTINCT category) AS categories_covered
       FROM survey_responses
-      WHERE surveyor_username IS NOT NULL AND surveyor_username != ''
+      ${where} AND surveyor_username IS NOT NULL AND surveyor_username != ''
       GROUP BY surveyor_username ORDER BY total_submissions DESC
-    `);
+    `, params);
     return rows.map(r => ({
       agent: r.agent,
       totalSubmissions: parseInt(r.total_submissions),
@@ -130,25 +148,28 @@ class KpiService {
     }));
   }
 
-  async getStatusDistribution() {
+  async getStatusDistribution(dateFrom, dateTo) {
+    const { where, params } = this._dateFilter(dateFrom, dateTo);
     const { rows } = await pool.query(`
       SELECT company_status AS status, COUNT(*) AS count
       FROM survey_responses
-      WHERE company_status IS NOT NULL AND company_status != ''
+      ${where} AND company_status IS NOT NULL AND company_status != ''
       GROUP BY company_status ORDER BY count DESC
-    `);
+    `, params);
     return rows;
   }
 
-  async getTopMissingFields() {
+  async getTopMissingFields(dateFrom, dateTo) {
+    const { where, params } = this._dateFilter(dateFrom, dateTo);
+
     const { rows } = await pool.query(`
       SELECT missing_fields
       FROM survey_responses
-      WHERE missing_fields IS NOT NULL AND missing_fields::TEXT != '[]' AND missing_fields::TEXT != '{}'
-    `);
+      ${where} AND missing_fields IS NOT NULL AND missing_fields::TEXT != '[]' AND missing_fields::TEXT != '{}'
+    `, params);
 
-    const totalResult = await pool.query('SELECT COUNT(*) AS cnt FROM survey_responses');
-    const total = parseInt(totalResult.rows[0].cnt) || 1;
+    // Use count of records WITH missing fields as denominator
+    const totalWithMissing = rows.length || 1;
 
     const fieldCounts = {};
     for (const row of rows) {
@@ -170,7 +191,7 @@ class KpiService {
       .map(([field, count]) => ({
         field,
         count,
-        percentage: (count / total) * 100,
+        percentage: (count / totalWithMissing) * 100,
       }))
       .sort((a, b) => b.count - a.count)
       .slice(0, 10);

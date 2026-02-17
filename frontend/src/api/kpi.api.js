@@ -21,17 +21,33 @@ export const getWeeklyStats = (from, to) => {
   return client.get('/kpi/weekly', { params });
 };
 
-export const getCategoryDistribution = () =>
-  client.get('/kpi/categories');
+export const getCategoryDistribution = (from, to) => {
+  const params = {};
+  if (from) params.from = from;
+  if (to) params.to = to;
+  return client.get('/kpi/categories', { params });
+};
 
-export const getAgentPerformance = () =>
-  client.get('/kpi/agents');
+export const getAgentPerformance = (from, to) => {
+  const params = {};
+  if (from) params.from = from;
+  if (to) params.to = to;
+  return client.get('/kpi/agents', { params });
+};
 
-export const getStatusDistribution = () =>
-  client.get('/kpi/statuses');
+export const getStatusDistribution = (from, to) => {
+  const params = {};
+  if (from) params.from = from;
+  if (to) params.to = to;
+  return client.get('/kpi/statuses', { params });
+};
 
-export const getMissingFields = () =>
-  client.get('/kpi/missing-fields');
+export const getMissingFields = (from, to) => {
+  const params = {};
+  if (from) params.from = from;
+  if (to) params.to = to;
+  return client.get('/kpi/missing-fields', { params });
+};
 
 export const getLiveKpi = () =>
   client.get('/kpi/live');

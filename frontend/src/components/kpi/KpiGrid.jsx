@@ -11,6 +11,7 @@ export default function KpiGrid({ summary, needsReviewCount = 0 }) {
       value: summary?.totalResponses,
       icon: '\uD83D\uDCCB',
       color: 'blue',
+      link: '/surveys',
     },
     {
       label: t('kpi.uniqueSurveyors'),
@@ -20,30 +21,34 @@ export default function KpiGrid({ summary, needsReviewCount = 0 }) {
     },
     {
       label: t('kpi.avgCompliance'),
-      value: summary?.avgCompliance?.toFixed(1),
+      value: summary?.avgCompliance != null ? Math.round(summary.avgCompliance) : 0,
       icon: '\u2705',
       color: 'teal',
       suffix: '%',
+      link: '/quality',
     },
     {
       label: t('kpi.mediaUsage'),
-      value: summary?.mediaUsageRate?.toFixed(1),
+      value: summary?.mediaUsageRate != null ? Math.round(summary.mediaUsageRate) : 0,
       icon: '\uD83D\uDCF7',
       color: 'purple',
       suffix: '%',
+      link: '/media',
     },
     {
       label: t('kpi.totalImages'),
       value: summary?.totalImages,
       icon: '\uD83D\uDDBC\uFE0F',
       color: 'orange',
+      link: '/media',
     },
     {
       label: t('kpi.completeness'),
-      value: summary?.completenessRate?.toFixed(1),
+      value: summary?.completenessRate != null ? Math.round(summary.completenessRate) : 0,
       icon: '\uD83C\uDFAF',
       color: (summary?.completenessRate || 0) > 80 ? 'green' : 'red',
       suffix: '%',
+      link: '/quality',
     },
     ...(needsReviewCount > 0
       ? [

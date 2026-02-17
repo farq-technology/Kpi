@@ -11,6 +11,7 @@ import CategoryChart from '../components/charts/CategoryChart';
 import AgentChart from '../components/charts/AgentChart';
 import StatusChart from '../components/charts/StatusChart';
 import SurveyTable from '../components/tables/SurveyTable';
+import { DashboardSkeleton } from '../components/common/Skeleton';
 
 export default function DashboardPage() {
   const { t } = useTranslation();
@@ -25,7 +26,7 @@ export default function DashboardPage() {
   const {
     data: surveys,
     pagination,
-  } = useSurveys({ page: 1, limit: 10 });
+  } = useSurveys({ page: 1, limit: 10, dateFrom: filters.dateFrom, dateTo: filters.dateTo });
   const needsReviewCount = useNeedsReviewCount();
 
   // Refresh on realtime events
@@ -36,7 +37,7 @@ export default function DashboardPage() {
   }, [lastEvent, refetch]);
 
   if (loading) {
-    return <div className="loading-container"><div className="spinner" /></div>;
+    return <DashboardSkeleton />;
   }
 
   if (error) {

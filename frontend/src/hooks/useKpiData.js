@@ -21,10 +21,10 @@ export function useKpiData(dateFrom, dateTo) {
         kpiApi.getKpiSummary(dateFrom, dateTo),
         kpiApi.getDailyStats(dateFrom, dateTo),
         kpiApi.getWeeklyStats(dateFrom, dateTo),
-        kpiApi.getCategoryDistribution(),
-        kpiApi.getAgentPerformance(),
-        kpiApi.getStatusDistribution(),
-        kpiApi.getMissingFields(),
+        kpiApi.getCategoryDistribution(dateFrom, dateTo),
+        kpiApi.getAgentPerformance(dateFrom, dateTo),
+        kpiApi.getStatusDistribution(dateFrom, dateTo),
+        kpiApi.getMissingFields(dateFrom, dateTo),
       ]);
 
       setSummary(summaryRes.data);

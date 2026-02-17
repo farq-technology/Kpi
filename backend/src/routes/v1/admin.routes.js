@@ -4,32 +4,8 @@ const pool = require('../../db/pool');
 const axios = require('axios');
 const crypto = require('crypto');
 const config = require('../../config/env');
-
-const REQUIRED_FIELDS = [
-  'name_ar', 'name_en', 'category', 'phone_number',
-  'working_days', 'working_hours_each_day', 'company_status',
-];
-
-let importRunning = false;
-let importProgress = { status: 'idle', imported: 0, total: 0, errors: 0 };
-
-function calculateCompliance(attrs) {
-  const skipFields = ['objectid', 'globalid', 'CreationDate', 'Creator', 'EditDate', 'Editor'];
-  const allFields = Object.keys(attrs).filter(k => !skipFields.includes(k));
-  const totalFields = allFields.length;
-  let filledFields = 0;
-  const missingFields = [];
-
-  for (const field of REQUIRED_FIELDS) {
-    if (!attrs[field] || attrs[field] === '') missingFields.push(field);
-  }
-  for (const field of allFields) {
-    if (attrs[field] !== null && attrs[field] !== undefined && attrs[field] !== '') filledFields++;
-  }
-
-  const score = totalFields > 0 ? parseFloat(((filledFields / totalFields) * 100).toFixed(2)) : 0;
-  return { score, missingFields, totalFields, filledFields };
-}
+const { arcgisToLocalMap } = require('../../config/field-mappings');
+const { calculateCompliance } = require('../../utils/compliance');
 
 let arcgisToken = null;
 let tokenExpiry = 0;
@@ -89,8 +65,15 @@ async function runImport(whereFilter) {
       for (const feat of features) {
         const attrs = feat.attributes || {};
         const geom = feat.geometry || {};
-        const { score, missingFields, totalFields, filledFields } = calculateCompliance(attrs);
-        const isComplete = missingFields.length === 0;
+        // Convert ArcGIS field names to local DB names for compliance calculation
+        const localRecord = {};
+        for (const [arcgisName, value] of Object.entries(attrs)) {
+          const localName = arcgisToLocalMap[arcgisName];
+          if (localName) localRecord[localName] = value;
+        }
+        const { score, isComplete, missingFields, totalFields, filledFields } = calculateCompliance(localRecord, {
+          category: attrs.category || '',
+        });
         const submittedAt = attrs.CreationDate ? new Date(attrs.CreationDate).toISOString() : new Date().toISOString();
         const lat = geom.y || attrs.latitude;
         const lon = geom.x || attrs.longitude;
@@ -137,7 +120,7 @@ async function runImport(whereFilter) {
             attrs.is_wheelchair_accessible || null, attrs.cuisine || null,
             attrs.offers_iftar_menu || null, attrs.is_open_during_suhoor || null,
             lat || null, lon || null,
-            isComplete, missingFields, score, totalFields, filledFields,
+            isComplete ? 1 : 0, JSON.stringify(missingFields), score, totalFields, filledFields,
             'addData', submittedAt, JSON.stringify(feat), JSON.stringify(attrs),
           ]);
         } catch (insertErr) {
@@ -294,6 +277,54 @@ router.post('/fix-columns', async (req, res) => {
     const columns = rows.map(r => r.column_name);
 
     res.json({ success: true, results, totalColumns: columns.length, columns });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/v1/admin/bulk-update - bulk update attributes by category
+router.post('/bulk-update', async (req, res) => {
+  const secret = req.query.secret;
+  if (secret !== (config.webhookSecret || 'kpi-webhook-farq-2026')) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+
+  const { category, field, value } = req.body || {};
+  if (!category || !field || value === undefined) {
+    return res.status(400).json({ error: 'Missing required fields: category, field, value' });
+  }
+
+  // Whitelist of allowed fields for bulk update
+  const allowedFields = [
+    'is_free_entry', 'require_ticket', 'is_landmark', 'has_parking_lot',
+    'valet_parking', 'drive_thru', 'wifi', 'is_wheelchair_accessible',
+    'has_women_only_prayer_room', 'has_smoking_area', 'has_a_waiting_area',
+    'dine_in', 'only_delivery', 'has_family_seating', 'reservation',
+    'offers_iftar_menu', 'is_open_during_suhoor', 'provides_iftar_tent',
+    'children_area', 'pickup_point_exists',
+  ];
+
+  if (!allowedFields.includes(field)) {
+    return res.status(400).json({ error: `Field "${field}" is not allowed for bulk update` });
+  }
+
+  try {
+    // Support matching multiple category variants (e.g. Mosque, Mosques)
+    const categories = Array.isArray(category) ? category : [category];
+    const placeholders = categories.map((_, i) => `$${i + 2}`).join(', ');
+
+    const result = await pool.query(
+      `UPDATE survey_responses SET ${field} = $1, updated_at = NOW() WHERE category IN (${placeholders})`,
+      [value, ...categories]
+    );
+
+    res.json({
+      success: true,
+      field,
+      value,
+      categories,
+      updatedCount: result.rowCount,
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

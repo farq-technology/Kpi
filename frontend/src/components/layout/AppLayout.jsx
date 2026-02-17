@@ -10,13 +10,24 @@ export default function AppLayout() {
 
   return (
     <div className="app-layout">
+      <a href="#main-content" className="skip-link">
+        {t('accessibility.skipToContent', 'Skip to content')}
+      </a>
       <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+      {sidebarOpen && (
+        <div
+          className="sidebar-backdrop"
+          style={{ display: 'block' }}
+          onClick={() => setSidebarOpen(false)}
+          aria-hidden="true"
+        />
+      )}
       <div className="main-content">
         <Header
           title={t('app.title')}
           onMenuClick={() => setSidebarOpen(!sidebarOpen)}
         />
-        <main className="page-content">
+        <main id="main-content" className="page-content">
           <Outlet />
         </main>
       </div>

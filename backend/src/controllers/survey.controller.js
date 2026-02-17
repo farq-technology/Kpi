@@ -1,6 +1,11 @@
+const crypto = require('crypto');
 const pool = require('../db/pool');
 const arcgisService = require('../services/arcgis.service');
 const realtimeService = require('../services/realtime.service');
+const { editableFieldMap, localToArcgisMap } = require('../config/field-mappings');
+const { calculateCompliance } = require('../utils/compliance');
+const { normalizeFieldValue } = require('../utils/field-normalization');
+const logger = require('../utils/logger');
 
 async function listSurveys(req, res) {
   try {
@@ -12,10 +17,20 @@ async function listSurveys(req, res) {
     const agent = req.query.agent || '';
     const needsReview = req.query.needsReview === 'true';
     const sort = req.query.sort || '';
+    const dateFrom = req.query.dateFrom || '';
+    const dateTo = req.query.dateTo || '';
 
     let where = 'WHERE 1=1';
     const params = [];
 
+    if (dateFrom) {
+      params.push(dateFrom);
+      where += ` AND submitted_at >= $${params.length}`;
+    }
+    if (dateTo) {
+      params.push(dateTo);
+      where += ` AND submitted_at <= $${params.length}`;
+    }
     if (search) {
       params.push(`%${search}%`);
       where += ` AND (poi_name_ar ILIKE $${params.length} OR poi_name_en ILIKE $${params.length} OR surveyor_username ILIKE $${params.length})`;
@@ -51,6 +66,7 @@ async function listSurveys(req, res) {
         latitude, longitude,
         is_complete, compliance_score,
         missing_fields,
+        review_status, reviewed_by, reviewed_at, review_notes,
         event_type, submitted_at, created_at
       FROM survey_responses
       ${where}
@@ -71,7 +87,7 @@ async function listSurveys(req, res) {
       },
     });
   } catch (err) {
-    console.error('List surveys error:', err);
+    logger.error('List surveys error', { error: err.message });
     res.status(500).json({ success: false, error: 'Failed to fetch surveys' });
   }
 }
@@ -100,7 +116,7 @@ async function getSurveyById(req, res) {
 
     res.json({ success: true, data: rows[0] });
   } catch (err) {
-    console.error('Get survey error:', err);
+    logger.error('Get survey error', { error: err.message });
     res.status(500).json({ success: false, error: 'Failed to fetch survey' });
   }
 }
@@ -145,7 +161,7 @@ async function getGeoJSON(req, res) {
 
     res.json(geojson);
   } catch (err) {
-    console.error('GeoJSON error:', err);
+    logger.error('GeoJSON error', { error: err.message });
     res.status(500).json({ success: false, error: 'Failed to generate GeoJSON' });
   }
 }
@@ -162,73 +178,15 @@ async function updateSurvey(req, res) {
     }
     const existing = rows[0];
 
-    // Editable field mapping: request field -> DB column (matches Survey123 exactly)
-    const fieldMap = {
-      poi_name_ar: 'poi_name_ar',
-      poi_name_en: 'poi_name_en',
-      legal_name: 'legal_name',
-      category: 'category',
-      secondary_category: 'secondary_category',
-      company_status: 'company_status',
-      status_notes: 'status_notes',
-      identity_correct: 'identity_correct',
-      identity_notes: 'identity_notes',
-      surveyor_username: 'surveyor_username',
-      phone_number: 'phone_number',
-      website: 'website',
-      social_media: 'social_media',
-      language: 'language',
-      working_days: 'working_days',
-      working_hours: 'working_hours',
-      break_time: 'break_time',
-      holidays: 'holidays',
-      payment_methods: 'payment_methods',
-      commercial_license: 'commercial_license',
-      building_number: 'building_number',
-      floor_number: 'floor_number',
-      entrance_description: 'entrance_description',
-      is_landmark: 'is_landmark',
-      pickup_point_exists: 'pickup_point_exists',
-      pickup_description: 'pickup_description',
-      has_physical_menu: 'has_physical_menu',
-      has_digital_menu: 'has_digital_menu',
-      menu_barcode_url: 'menu_barcode_url',
-      cuisine: 'cuisine',
-      dine_in: 'dine_in',
-      only_delivery: 'only_delivery',
-      drive_thru: 'drive_thru',
-      order_from_car: 'order_from_car',
-      has_family_seating: 'has_family_seating',
-      has_separate_rooms_for_dining: 'has_separate_rooms_for_dining',
-      large_groups_can_be_seated: 'large_groups_can_be_seated',
-      reservation: 'reservation',
-      has_parking_lot: 'has_parking_lot',
-      valet_parking: 'valet_parking',
-      wifi: 'wifi',
-      is_wheelchair_accessible: 'is_wheelchair_accessible',
-      has_smoking_area: 'has_smoking_area',
-      has_a_waiting_area: 'has_a_waiting_area',
-      has_women_only_prayer_room: 'has_women_only_prayer_room',
-      children_area: 'children_area',
-      music: 'music',
-      live_sport_broadcasting: 'live_sport_broadcasting',
-      shisha: 'shisha',
-      offers_iftar_menu: 'offers_iftar_menu',
-      is_open_during_suhoor: 'is_open_during_suhoor',
-      provides_iftar_tent: 'provides_iftar_tent',
-      require_ticket: 'require_ticket',
-      is_free_entry: 'is_free_entry',
-      general_notes: 'general_notes',
-      latitude: 'latitude',
-      longitude: 'longitude',
-    };
+    // Use centralized field mapping + latitude/longitude
+    const fieldMap = { ...editableFieldMap, latitude: 'latitude', longitude: 'longitude' };
 
-    // Build SET clause
+    // Build SET clause with multi-select normalization
     const setClauses = [];
     const params = [];
     for (const [field, col] of Object.entries(fieldMap)) {
       if (updates[field] !== undefined) {
-        params.push(updates[field]);
+        params.push(normalizeFieldValue(field, updates[field]));
         setClauses.push(`${col} = $${params.length}`);
       }
     }
@@ -237,39 +195,29 @@ async function updateSurvey(req, res) {
       return res.status(400).json({ success: false, error: 'No fields to update' });
     }
 
-    // Recalculate compliance
+    // Merge updates into existing record for compliance recalculation
     const merged = { ...existing };
     for (const [field, col] of Object.entries(fieldMap)) {
-      if (updates[field] !== undefined) merged[col] = updates[field];
+      if (updates[field] !== undefined) merged[col] = normalizeFieldValue(field, updates[field]);
     }
 
-    const requiredFields = [
-      merged.poi_name_ar, merged.poi_name_en, merged.category,
-      merged.phone_number, merged.working_days, merged.working_hours, merged.company_status,
-    ];
-    const allFieldValues = [
-      merged.poi_name_ar, merged.poi_name_en, merged.legal_name,
-      merged.category, merged.secondary_category,
-      merged.company_status, merged.phone_number, merged.website, merged.social_media,
-      merged.working_days, merged.working_hours, merged.break_time, merged.holidays,
-      merged.language, merged.payment_methods, merged.commercial_license,
-      merged.building_number, merged.floor_number, merged.entrance_description,
-      merged.dine_in, merged.has_family_seating, merged.has_parking_lot, merged.wifi,
-      merged.is_wheelchair_accessible, merged.cuisine, merged.offers_iftar_menu, merged.is_open_during_suhoor,
-      merged.valet_parking, merged.drive_thru, merged.only_delivery,
-      merged.has_separate_rooms_for_dining, merged.large_groups_can_be_seated,
-      merged.order_from_car, merged.music, merged.live_sport_broadcasting,
-      merged.shisha, merged.children_area, merged.has_smoking_area,
-      merged.has_a_waiting_area, merged.reservation, merged.has_women_only_prayer_room,
-      merged.provides_iftar_tent, merged.is_landmark,
-      merged.has_physical_menu, merged.has_digital_menu,
-    ];
+    // Query media count for this response
+    let mediaCount = 0;
+    try {
+      const { rows: mcRows } = await pool.query(
+        'SELECT COUNT(*) AS cnt FROM media_attachments WHERE response_id = $1', [id]
+      );
+      mediaCount = parseInt(mcRows[0].cnt) || 0;
+    } catch (_) { /* ignore */ }
 
-    const filledRequired = requiredFields.filter(f => f && f !== '' && f !== 'N/A').length;
-    const totalFields = allFieldValues.length;
-    const filledFields = allFieldValues.filter(f => f && f !== '' && f !== 'N/A').length;
-    const complianceScore = totalFields > 0 ? parseFloat(((filledFields / totalFields) * 100).toFixed(2)) : 0;
-    const isComplete = filledRequired === requiredFields.length ? 1 : 0;
+    // Category-aware compliance calculation
+    const compliance = calculateCompliance(merged, {
+      category: merged.category || '',
+      mediaCount,
+    });
+    const complianceScore = compliance.score;
+    const isComplete = compliance.isComplete ? 1 : 0;
+    const { totalFields, filledFields, missingFields } = compliance;
 
     params.push(complianceScore);
     setClauses.push(`compliance_score = $${params.length}`);
@@ -279,6 +227,8 @@ async function updateSurvey(req, res) {
     setClauses.push(`total_fields = $${params.length}`);
     params.push(filledFields);
     setClauses.push(`filled_fields = $${params.length}`);
+    params.push(JSON.stringify(missingFields));
+    setClauses.push(`missing_fields = $${params.length}`);
 
     params.push(id);
     await pool.query(
@@ -291,65 +241,6 @@ async function updateSurvey(req, res) {
     const globalId = existing.arcgis_global_id;
     if (globalId) {
       try {
-        // Map local fields to ArcGIS field names (exact Survey123 field names)
-        const arcgisFieldMap = {
-          poi_name_ar: 'name_ar',
-          poi_name_en: 'name_en',
-          legal_name: 'legal_name',
-          category: 'category',
-          secondary_category: 'secondary_category',
-          company_status: 'company_status',
-          status_notes: 'status_notes',
-          identity_correct: 'identity_correct',
-          identity_notes: 'identity_notes',
-          surveyor_username: 'agent_name',
-          phone_number: 'phone_number',
-          website: 'website',
-          social_media: 'social_media',
-          language: 'language',
-          working_days: 'working_days',
-          working_hours: 'working_hours_each_day',
-          break_time: 'break_time_each_day',
-          holidays: 'holidays',
-          payment_methods: 'accepted_payment_methods',
-          commercial_license: 'commercial_license_number',
-          building_number: 'building_number',
-          floor_number: 'floor_number',
-          entrance_description: 'entrance_description',
-          is_landmark: 'is_landmark',
-          pickup_point_exists: 'pickup_point_exists',
-          pickup_description: 'pickup_description',
-          has_physical_menu: 'has_physical_menu',
-          has_digital_menu: 'has_digital_menu',
-          menu_barcode_url: 'menu_barcode_url',
-          cuisine: 'cuisine',
-          dine_in: 'dine_in',
-          only_delivery: 'only_delivery',
-          drive_thru: 'drive_thru',
-          order_from_car: 'order_from_car',
-          has_family_seating: 'has_family_seating',
-          has_separate_rooms_for_dining: 'has_separate_rooms_for_dining',
-          large_groups_can_be_seated: 'large_groups_can_be_seated',
-          reservation: 'reservation',
-          has_parking_lot: 'has_parking_lot',
-          valet_parking: 'valet_parking',
-          wifi: 'wifi',
-          is_wheelchair_accessible: 'is_wheelchair_accessible',
-          has_smoking_area: 'has_smoking_area',
-          has_a_waiting_area: 'has_a_waiting_area',
-          has_women_only_prayer_room: 'has_women_only_prayer_room',
-          children_area: 'children_area',
-          music: 'music',
-          live_sport_broadcasting: 'live_sport_broadcasting',
-          shisha: 'shisha',
-          offers_iftar_menu: 'offers_iftar_menu',
-          is_open_during_suhoor: 'is_open_during_suhoor',
-          provides_iftar_tent: 'provides_iftar_tent',
-          require_ticket: 'require_ticket',
-          is_free_entry: 'is_free_entry',
-          general_notes: 'general_notes',
-        };
-
         // Get objectId from ArcGIS using globalId
         let objectId = existing.arcgis_object_id;
         if (!objectId) {
@@ -369,10 +260,11 @@ async function updateSurvey(req, res) {
           throw new Error('Could not find objectId in ArcGIS for this feature');
         }
 
+        // Use centralized localToArcgisMap instead of inline mapping
         const arcgisAttrs = { objectid: objectId };
         for (const [field] of Object.entries(fieldMap)) {
-          if (updates[field] !== undefined && arcgisFieldMap[field]) {
-            arcgisAttrs[arcgisFieldMap[field]] = updates[field];
+          if (updates[field] !== undefined && localToArcgisMap[field]) {
+            arcgisAttrs[localToArcgisMap[field]] = normalizeFieldValue(field, updates[field]);
           }
         }
 
@@ -383,10 +275,34 @@ async function updateSurvey(req, res) {
 
         const results = await arcgisService.applyEdits([feature]);
         arcgisSync = { synced: true, results };
-        console.log(`ArcGIS sync success for ${globalId}`);
+        logger.info('ArcGIS sync success', { globalId });
+
+        // Record successful sync
+        await pool.query(
+          `UPDATE survey_responses SET sync_pending = 0, last_synced_at = NOW(), last_sync_error = NULL WHERE id = $1`,
+          [id]
+        );
+        // Audit log
+        const changedFields = Object.keys(updates).filter(f => fieldMap[f]);
+        await pool.query(
+          `INSERT INTO sync_audit_log (id, response_id, direction, status, fields_changed) VALUES ($1, $2, 'outgoing', 'success', $3)`,
+          [crypto.randomUUID(), id, JSON.stringify(changedFields)]
+        );
       } catch (err) {
-        console.error('ArcGIS sync error:', err.message);
+        logger.error('ArcGIS sync error', { error: err.message });
         arcgisSync = { synced: false, error: err.message };
+
+        // Record sync failure for retry
+        await pool.query(
+          `UPDATE survey_responses SET sync_pending = 1, last_sync_error = $1, last_sync_attempt = NOW() WHERE id = $2`,
+          [err.message, id]
+        ).catch(e => logger.error('Failed to record sync failure', { error: e.message }));
+
+        // Audit log
+        await pool.query(
+          `INSERT INTO sync_audit_log (id, response_id, direction, status, error_message) VALUES ($1, $2, 'outgoing', 'failed', $3)`,
+          [crypto.randomUUID(), id, err.message]
+        ).catch(e => logger.error('Failed to write audit log', { error: e.message }));
       }
     }
 
@@ -403,7 +319,7 @@ async function updateSurvey(req, res) {
       arcgisSync,
     });
   } catch (err) {
-    console.error('Update survey error:', err);
+    logger.error('Update survey error', { error: err.message });
     res.status(500).json({ success: false, error: 'Failed to update survey' });
   }
 }
@@ -420,9 +336,70 @@ async function getFilterOptions(req, res) {
       agents: agentResult.rows.map(r => r.surveyor_username),
     });
   } catch (err) {
-    console.error('Filter options error:', err);
+    logger.error('Filter options error', { error: err.message });
     res.status(500).json({ success: false, error: 'Failed to fetch filter options' });
   }
 }
 
-module.exports = { listSurveys, getSurveyById, getGeoJSON, updateSurvey, getFilterOptions };
+async function reviewSurvey(req, res) {
+  try {
+    const { id } = req.params;
+    const { status, notes, reviewer } = req.body;
+
+    const validStatuses = ['pending', 'approved', 'rejected', 'needs_revision'];
+    if (!status || !validStatuses.includes(status)) {
+      return res.status(400).json({ success: false, error: `Invalid review status. Must be one of: ${validStatuses.join(', ')}` });
+    }
+
+    const result = await pool.query(
+      `UPDATE survey_responses
+       SET review_status = $1, review_notes = $2, reviewed_by = $3, reviewed_at = NOW()
+       WHERE id = $4
+       RETURNING id, review_status, reviewed_by, reviewed_at, review_notes`,
+      [status, notes || null, reviewer || 'admin', id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Survey not found' });
+    }
+
+    logger.info('Survey reviewed', { surveyId: id, status, reviewer: reviewer || 'admin' });
+
+    res.json({ success: true, data: result.rows[0] });
+  } catch (err) {
+    logger.error('Review error', { error: err.message, surveyId: req.params.id });
+    res.status(500).json({ success: false, error: 'Failed to update review status' });
+  }
+}
+
+async function batchReview(req, res) {
+  try {
+    const { ids, status, notes, reviewer } = req.body;
+
+    const validStatuses = ['pending', 'approved', 'rejected', 'needs_revision'];
+    if (!status || !validStatuses.includes(status)) {
+      return res.status(400).json({ success: false, error: 'Invalid review status' });
+    }
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ success: false, error: 'ids must be a non-empty array' });
+    }
+
+    const placeholders = ids.map((_, i) => `$${i + 4}`).join(',');
+    const result = await pool.query(
+      `UPDATE survey_responses
+       SET review_status = $1, review_notes = $2, reviewed_by = $3, reviewed_at = NOW()
+       WHERE id IN (${placeholders})
+       RETURNING id, review_status`,
+      [status, notes || null, reviewer || 'admin', ...ids]
+    );
+
+    logger.info('Batch review', { count: result.rows.length, status, reviewer: reviewer || 'admin' });
+
+    res.json({ success: true, data: result.rows, updated: result.rows.length });
+  } catch (err) {
+    logger.error('Batch review error', { error: err.message });
+    res.status(500).json({ success: false, error: 'Failed to batch update review status' });
+  }
+}
+
+module.exports = { listSurveys, getSurveyById, getGeoJSON, updateSurvey, getFilterOptions, reviewSurvey, batchReview };

@@ -1,9 +1,9 @@
-export default function KpiCard({ label, value, icon, color = 'blue', suffix = '', target, description }) {
+export default function KpiCard({ label, value, icon, color = 'blue', suffix = '', target, description, trend, link }) {
   const numValue = typeof value === 'string' ? parseFloat(value) : value;
   const progress = target && numValue ? Math.min((numValue / target) * 100, 100) : null;
 
   return (
-    <div className="kpi-card">
+    <div className="kpi-card" style={{ cursor: link ? 'pointer' : 'default' }}>
       <div className="kpi-card-top">
         <div className={`kpi-card-icon ${color}`}>{icon}</div>
         {target && (
@@ -17,6 +17,11 @@ export default function KpiCard({ label, value, icon, color = 'blue', suffix = '
         {typeof numValue === 'number' && !isNaN(numValue) ? numValue.toLocaleString() : value}
         {suffix && <span className="kpi-card-suffix">{suffix}</span>}
       </div>
+      {trend !== undefined && trend !== 0 && (
+        <span style={{ fontSize: '0.85em', color: trend > 0 ? '#16a34a' : '#dc2626' }}>
+          {trend > 0 ? '\u25B2' : '\u25BC'} {trend > 0 ? `+${trend}%` : `${trend}%`}
+        </span>
+      )}
       {progress !== null && (
         <div className="kpi-card-progress">
           <div
