@@ -193,4 +193,46 @@ router.get('/import/status', (req, res) => {
   res.json(importProgress);
 });
 
+// POST /api/v1/admin/migrate - run pending migrations
+router.post('/migrate', async (req, res) => {
+  const secret = req.query.secret;
+  if (secret !== (config.webhookSecret || 'kpi-webhook-farq-2026')) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+
+  try {
+    const fs = require('fs');
+    const path = require('path');
+    const migrationsDir = path.join(__dirname, '../../db/migrations');
+    const files = fs.readdirSync(migrationsDir).filter(f => f.endsWith('.sql')).sort();
+    const results = [];
+
+    for (const file of files) {
+      const version = parseInt(file.split('_')[0], 10);
+      try {
+        const { rows } = await pool.query(
+          'SELECT 1 FROM schema_migrations WHERE version = $1', [version]
+        );
+        if (rows.length > 0) { results.push({ file, status: 'skipped' }); continue; }
+      } catch (e) { /* schema_migrations may not exist */ }
+
+      const sql = fs.readFileSync(path.join(migrationsDir, file), 'utf8');
+      try {
+        await pool.query(sql);
+        await pool.query(
+          'INSERT INTO schema_migrations (version, name) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+          [version, file]
+        );
+        results.push({ file, status: 'applied' });
+      } catch (err) {
+        results.push({ file, status: 'error', error: err.message });
+      }
+    }
+
+    res.json({ success: true, results });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;
