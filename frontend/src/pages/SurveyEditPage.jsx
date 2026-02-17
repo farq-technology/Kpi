@@ -29,7 +29,72 @@ const FLOOR_OPTIONS = [
   '1st Floor', '2nd Floor', '3rd Floor', '4th Floor', '5th Floor', 'Rooftop',
 ];
 
-const AGENT_OPTIONS = ['Ahmad Shuban', 'Fadhel', 'Naver', 'Abdulrhman', 'Other'];
+const AGENT_OPTIONS = [
+  { code: 'ahmad_shuban', label: 'Ahmad Shuban' },
+  { code: 'fadhel', label: 'Fadhel' },
+  { code: 'naver', label: 'Naver' },
+  { code: 'abdulrhman', label: 'Abdulrhman' },
+  { code: 'other', label: 'Other' },
+];
+
+const WORKING_DAYS_OPTIONS = [
+  { code: 'all_days', label: 'All Days (7 days)' },
+  { code: 'sat_thu', label: 'Saturday - Thursday' },
+  { code: 'sun_thu', label: 'Sunday - Thursday' },
+  { code: 'custom_days', label: 'Custom Days' },
+];
+
+const WORKING_HOURS_OPTIONS = [
+  { code: '24h', label: '24 Hours' },
+  { code: '8am_12am', label: '8 AM - 12 AM' },
+  { code: '9am_11pm', label: '9 AM - 11 PM' },
+  { code: '9am_12am', label: '9 AM - 12 AM' },
+  { code: '8am_10pm', label: '8 AM - 10 PM' },
+  { code: '6am_12am', label: '6 AM - 12 AM' },
+  { code: '7am_11pm', label: '7 AM - 11 PM' },
+  { code: 'custom_hours', label: 'Custom Hours' },
+];
+
+const BREAK_TIME_OPTIONS = [
+  { code: 'no_break', label: 'No Break' },
+  { code: '12pm_1pm', label: '12 PM - 1 PM' },
+  { code: '1pm_2pm', label: '1 PM - 2 PM' },
+  { code: '2pm_4pm', label: '2 PM - 4 PM' },
+  { code: '12pm_4pm', label: '12 PM - 4 PM' },
+  { code: '1pm_4pm', label: '1 PM - 4 PM' },
+  { code: 'custom_break', label: 'Custom Break' },
+];
+
+const HOLIDAYS_OPTIONS = [
+  { code: 'none', label: 'None' },
+  { code: 'friday', label: 'Friday' },
+  { code: 'fri_sat', label: 'Friday & Saturday' },
+  { code: 'eid_fitr', label: 'Eid Al-Fitr' },
+  { code: 'eid_adha', label: 'Eid Al-Adha' },
+  { code: 'national_day', label: 'National Day' },
+  { code: 'founding_day', label: 'Founding Day' },
+  { code: 'ramadan', label: 'Ramadan' },
+];
+
+const PAYMENT_OPTIONS = [
+  { code: 'cash', label: 'Cash' },
+  { code: 'mada', label: 'Mada' },
+  { code: 'visa', label: 'Visa / Mastercard' },
+  { code: 'apple_pay', label: 'Apple Pay' },
+  { code: 'stc_pay', label: 'STC Pay' },
+  { code: 'bank_transfer', label: 'Bank Transfer' },
+  { code: 'other', label: 'Other' },
+];
+
+const LANGUAGE_OPTIONS = [
+  { code: 'arabic', label: 'Arabic' },
+  { code: 'english', label: 'English' },
+  { code: 'arabic,english', label: 'Arabic & English' },
+  { code: 'urdu', label: 'Urdu' },
+  { code: 'hindi', label: 'Hindi' },
+  { code: 'tagalog', label: 'Tagalog' },
+  { code: 'other', label: 'Other' },
+];
 
 const FIELD_GROUPS = [
   {
@@ -44,7 +109,7 @@ const FIELD_GROUPS = [
       { key: 'status_notes', labelKey: 'edit.statusNotes', type: 'text' },
       { key: 'identity_correct', labelKey: 'edit.identityCorrect', type: 'select', options: YES_NO },
       { key: 'identity_notes', labelKey: 'edit.identityNotes', type: 'text' },
-      { key: 'surveyor_username', labelKey: 'edit.agentName', type: 'select', options: AGENT_OPTIONS },
+      { key: 'surveyor_username', labelKey: 'edit.agentName', type: 'coded_select', options: AGENT_OPTIONS },
     ],
   },
   {
@@ -53,7 +118,7 @@ const FIELD_GROUPS = [
       { key: 'phone_number', labelKey: 'edit.phone', type: 'text' },
       { key: 'website', labelKey: 'edit.website', type: 'text' },
       { key: 'social_media', labelKey: 'edit.socialMedia', type: 'text' },
-      { key: 'language', labelKey: 'edit.language', type: 'text' },
+      { key: 'language', labelKey: 'edit.language', type: 'multi_select', options: LANGUAGE_OPTIONS },
     ],
   },
   {
@@ -62,7 +127,7 @@ const FIELD_GROUPS = [
       { key: 'latitude', labelKey: 'edit.latitude', type: 'number' },
       { key: 'longitude', labelKey: 'edit.longitude', type: 'number' },
       { key: 'building_number', labelKey: 'edit.buildingNumber', type: 'text' },
-      { key: 'floor_number', labelKey: 'edit.floorNumber', type: 'select', options: FLOOR_OPTIONS },
+      { key: 'floor_number', labelKey: 'edit.floorNumber', type: 'coded_select', options: FLOOR_OPTIONS.map(f => ({ code: f.toLowerCase().replace(/\s+/g, '_').replace(/-/g, '_'), label: f })) },
       { key: 'entrance_description', labelKey: 'edit.entranceDescription', type: 'text' },
       { key: 'is_landmark', labelKey: 'edit.isLandmark', type: 'select', options: YES_NO },
       { key: 'pickup_point_exists', labelKey: 'edit.pickupPointExists', type: 'select', options: YES_NO },
@@ -73,16 +138,16 @@ const FIELD_GROUPS = [
     titleKey: 'edit.licenseInfo',
     fields: [
       { key: 'commercial_license', labelKey: 'edit.commercialLicense', type: 'text' },
-      { key: 'payment_methods', labelKey: 'edit.paymentMethods', type: 'text' },
+      { key: 'payment_methods', labelKey: 'edit.paymentMethods', type: 'multi_select', options: PAYMENT_OPTIONS },
     ],
   },
   {
     titleKey: 'edit.workingInfo',
     fields: [
-      { key: 'working_days', labelKey: 'edit.workingDays', type: 'text' },
-      { key: 'working_hours', labelKey: 'edit.workingHours', type: 'text' },
-      { key: 'break_time', labelKey: 'edit.breakTime', type: 'text' },
-      { key: 'holidays', labelKey: 'edit.holidays', type: 'text' },
+      { key: 'working_days', labelKey: 'edit.workingDays', type: 'coded_select', options: WORKING_DAYS_OPTIONS },
+      { key: 'working_hours', labelKey: 'edit.workingHours', type: 'coded_select', options: WORKING_HOURS_OPTIONS },
+      { key: 'break_time', labelKey: 'edit.breakTime', type: 'coded_select', options: BREAK_TIME_OPTIONS },
+      { key: 'holidays', labelKey: 'edit.holidays', type: 'multi_select', options: HOLIDAYS_OPTIONS },
     ],
   },
   {
@@ -433,6 +498,42 @@ export default function SurveyEditPage() {
                         <option key={opt} value={opt}>{opt}</option>
                       ))}
                     </select>
+                  ) : field.type === 'coded_select' ? (
+                    <select
+                      value={form[field.key] || ''}
+                      onChange={e => handleChange(field.key, e.target.value)}
+                    >
+                      <option value="">--</option>
+                      {field.options.map(opt => (
+                        <option key={opt.code} value={opt.code}>{opt.label}</option>
+                      ))}
+                    </select>
+                  ) : field.type === 'multi_select' ? (
+                    <div className="multi-select-chips">
+                      {field.options.map(opt => {
+                        const currentVal = form[field.key] || '';
+                        const selected = currentVal.split(',').filter(Boolean);
+                        const isActive = selected.includes(opt.code);
+                        return (
+                          <button
+                            key={opt.code}
+                            type="button"
+                            className={`chip ${isActive ? 'chip-active' : ''}`}
+                            onClick={() => {
+                              let next;
+                              if (isActive) {
+                                next = selected.filter(c => c !== opt.code);
+                              } else {
+                                next = [...selected, opt.code];
+                              }
+                              handleChange(field.key, next.join(','));
+                            }}
+                          >
+                            {opt.label}
+                          </button>
+                        );
+                      })}
+                    </div>
                   ) : field.type === 'textarea' ? (
                     <textarea
                       value={form[field.key] ?? ''}
