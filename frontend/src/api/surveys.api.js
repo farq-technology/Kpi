@@ -11,3 +11,6 @@ export const updateSurvey = (id, data) =>
 
 export const getGeoJSON = () =>
   client.get('/surveys/geojson');
+
+export const getSurveyAttachments = (objectId) =>
+  client.get(`/media/arcgis-attachments`, { params: { objectIds: objectId } });

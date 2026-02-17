@@ -2,7 +2,9 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
-import { getSurveyById, updateSurvey } from '../api/surveys.api';
+import { getSurveyById, updateSurvey, getSurveyAttachments } from '../api/surveys.api';
+import { API_BASE } from '../api/client';
+import { getMediaDownloadUrl } from '../api/media.api';
 
 const YES_NO = ['Yes', 'No'];
 
@@ -160,6 +162,9 @@ export default function SurveyEditPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [syncResult, setSyncResult] = useState(null);
+  const [media, setMedia] = useState([]);
+  const [mediaLoading, setMediaLoading] = useState(false);
+  const [selectedImage, setSelectedImage] = useState(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -167,11 +172,49 @@ export default function SurveyEditPage() {
         const res = await getSurveyById(id);
         const data = res.data;
         setOriginal(data);
+
+        // Merge attributes JSONB into form so extra fields show up
+        const attrs = data.attributes || {};
         const initial = {};
         ALL_FIELD_KEYS.forEach(key => {
-          initial[key] = data[key] ?? '';
+          initial[key] = data[key] ?? attrs[key] ?? '';
         });
         setForm(initial);
+
+        // Fetch media: first check local DB, then ArcGIS
+        if (data.media && data.media.length > 0) {
+          setMedia(data.media.map(m => ({
+            ...m,
+            url: getMediaDownloadUrl(m.id),
+          })));
+        } else if (data.arcgis_object_id) {
+          setMediaLoading(true);
+          try {
+            const attRes = await getSurveyAttachments(data.arcgis_object_id);
+            const groups = attRes.data || [];
+            const items = [];
+            for (const group of groups) {
+              if (!group.attachmentInfos) continue;
+              for (const att of group.attachmentInfos) {
+                items.push({
+                  id: att.id,
+                  fileName: att.name,
+                  contentType: att.contentType || '',
+                  mediaCategory: (att.contentType || '').startsWith('image/') ? 'image'
+                    : (att.contentType || '').startsWith('video/') ? 'video' : 'document',
+                  keyword: att.keywords || null,
+                  fileSize: att.size || 0,
+                  url: `${API_BASE}/api/v1/media/arcgis-proxy/${data.arcgis_object_id}/${att.id}`,
+                });
+              }
+            }
+            setMedia(items);
+          } catch (attErr) {
+            console.error('Error fetching attachments:', attErr);
+          } finally {
+            setMediaLoading(false);
+          }
+        }
       } catch (err) {
         console.error('Error fetching survey:', err);
         toast.error(t('status.error'));
@@ -276,6 +319,100 @@ export default function SurveyEditPage() {
           {original.filled_fields}/{original.total_fields} {t('edit.fieldsFilled')}
         </span>
       </div>
+
+      {/* Media Gallery - at top for validation */}
+      {mediaLoading && (
+        <div className="edit-card" style={{ marginBottom: '16px', textAlign: 'center', padding: '24px' }}>
+          <div className="spinner" style={{ margin: '0 auto' }} />
+          <p style={{ marginTop: '8px', color: '#6b7280' }}>Loading photos...</p>
+        </div>
+      )}
+      {media.length > 0 && (
+        <div className="edit-card" style={{ marginBottom: '16px' }}>
+          <h3 style={{ marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            Photos & Media
+            <span className="badge blue">{media.length}</span>
+          </h3>
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))',
+            gap: '12px',
+          }}>
+            {media.map(m => (
+              <div key={m.id} style={{
+                borderRadius: '8px',
+                overflow: 'hidden',
+                border: '1px solid #e5e7eb',
+                background: '#f9fafb',
+                cursor: 'pointer',
+              }}
+                onClick={() => m.mediaCategory === 'image' && setSelectedImage(m)}
+              >
+                {m.mediaCategory === 'image' ? (
+                  <img
+                    src={m.url}
+                    alt={m.fileName}
+                    style={{ width: '100%', height: '160px', objectFit: 'cover' }}
+                    loading="lazy"
+                  />
+                ) : m.mediaCategory === 'video' ? (
+                  <video
+                    src={m.url}
+                    controls
+                    preload="metadata"
+                    style={{ width: '100%', height: '160px', objectFit: 'cover', background: '#000' }}
+                  />
+                ) : (
+                  <div style={{
+                    height: '160px', display: 'flex', alignItems: 'center',
+                    justifyContent: 'center', fontSize: '32px', background: '#f3f4f6'
+                  }}>
+                    📄
+                  </div>
+                )}
+                <div style={{ padding: '6px 8px', fontSize: '11px', color: '#6b7280' }}>
+                  <span className="badge blue" style={{ fontSize: '10px' }}>
+                    {m.keyword || m.mediaCategory}
+                  </span>
+                  <div style={{ marginTop: '2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {m.fileName}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+      {!mediaLoading && media.length === 0 && (
+        <div className="edit-card" style={{ marginBottom: '16px', padding: '16px', textAlign: 'center', color: '#9ca3af', background: '#fef3c7', borderLeft: '4px solid #f59e0b' }}>
+          No photos/media attached to this POI
+        </div>
+      )}
+
+      {/* Fullscreen image viewer */}
+      {selectedImage && (
+        <div
+          style={{
+            position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+            background: 'rgba(0,0,0,0.85)', zIndex: 9999,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            cursor: 'pointer',
+          }}
+          onClick={() => setSelectedImage(null)}
+        >
+          <img
+            src={selectedImage.url}
+            alt={selectedImage.fileName}
+            style={{ maxWidth: '90vw', maxHeight: '90vh', borderRadius: '8px' }}
+          />
+          <div style={{
+            position: 'absolute', top: '16px', right: '16px',
+            color: '#fff', fontSize: '24px', fontWeight: 'bold', cursor: 'pointer',
+          }}>
+            ✕
+          </div>
+        </div>
+      )}
 
       <div className="edit-grid">
         {FIELD_GROUPS.map(group => (
