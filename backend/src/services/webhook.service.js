@@ -28,10 +28,20 @@ class WebhookService {
       const localName = arcgisToLocalMap[arcgisName];
       if (localName) localRecord[localName] = value;
     }
-    const mediaCount = (feature.attachments && feature.attachments.length) || 0;
+    // Count images and videos separately for weighted compliance
+    let imageCount = 0;
+    let videoCount = 0;
+    if (feature.attachments && feature.attachments.length > 0) {
+      for (const att of feature.attachments) {
+        const ct = (att.contentType || '').toLowerCase();
+        if (ct.startsWith('video/')) videoCount++;
+        else if (ct.startsWith('image/')) imageCount++;
+      }
+    }
     const { score, isComplete, missingFields, totalFields, filledFields } = calculateCompliance(localRecord, {
       category: localRecord.category || attrs.category || '',
-      mediaCount,
+      imageCount,
+      videoCount,
     });
 
     const submittedAt = attrs.CreationDate

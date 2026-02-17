@@ -25,6 +25,7 @@ export default function KpiGrid({ summary, needsReviewCount = 0 }) {
       icon: '\u2705',
       color: 'teal',
       suffix: '%',
+      target: 100,
       link: '/quality',
     },
     {
@@ -33,6 +34,7 @@ export default function KpiGrid({ summary, needsReviewCount = 0 }) {
       icon: '\uD83D\uDCF7',
       color: 'purple',
       suffix: '%',
+      target: 100,
       link: '/media',
     },
     {
@@ -48,6 +50,7 @@ export default function KpiGrid({ summary, needsReviewCount = 0 }) {
       icon: '\uD83C\uDFAF',
       color: (summary?.completenessRate || 0) > 80 ? 'green' : 'red',
       suffix: '%',
+      target: 100,
       link: '/quality',
     },
     ...(needsReviewCount > 0

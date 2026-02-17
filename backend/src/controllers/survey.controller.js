@@ -201,19 +201,24 @@ async function updateSurvey(req, res) {
       if (updates[field] !== undefined) merged[col] = normalizeFieldValue(field, updates[field]);
     }
 
-    // Query media count for this response
-    let mediaCount = 0;
+    // Query image/video counts for weighted compliance
+    let imageCount = 0;
+    let videoCount = 0;
     try {
       const { rows: mcRows } = await pool.query(
-        'SELECT COUNT(*) AS cnt FROM media_attachments WHERE response_id = $1', [id]
+        `SELECT media_category, COUNT(*) AS cnt FROM media_attachments WHERE response_id = $1 GROUP BY media_category`, [id]
       );
-      mediaCount = parseInt(mcRows[0].cnt) || 0;
+      for (const row of mcRows) {
+        if (row.media_category === 'image') imageCount = parseInt(row.cnt) || 0;
+        else if (row.media_category === 'video') videoCount = parseInt(row.cnt) || 0;
+      }
     } catch (_) { /* ignore */ }
 
-    // Category-aware compliance calculation
+    // Category-aware weighted compliance calculation
     const compliance = calculateCompliance(merged, {
       category: merged.category || '',
-      mediaCount,
+      imageCount,
+      videoCount,
     });
     const complianceScore = compliance.score;
     const isComplete = compliance.isComplete ? 1 : 0;

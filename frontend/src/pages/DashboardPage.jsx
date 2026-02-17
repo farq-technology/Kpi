@@ -10,6 +10,9 @@ import DailyTrendChart from '../components/charts/DailyTrendChart';
 import CategoryChart from '../components/charts/CategoryChart';
 import AgentChart from '../components/charts/AgentChart';
 import StatusChart from '../components/charts/StatusChart';
+import CompletenessGauge from '../components/charts/CompletenessGauge';
+import WeeklyComparisonChart from '../components/charts/WeeklyComparisonChart';
+import TopMissingFieldsChart from '../components/charts/TopMissingFieldsChart';
 import SurveyTable from '../components/tables/SurveyTable';
 import { DashboardSkeleton } from '../components/common/Skeleton';
 
@@ -19,7 +22,7 @@ export default function DashboardPage() {
   const { lastEvent } = useRealtime();
 
   const {
-    summary, daily, categories, agents, statuses,
+    summary, daily, weekly, categories, agents, statuses, missingFields,
     loading, error, refetch,
   } = useKpiData(filters.dateFrom, filters.dateTo);
 
@@ -61,17 +64,30 @@ export default function DashboardPage() {
       {/* KPI Cards */}
       <KpiGrid summary={summary} needsReviewCount={needsReviewCount} />
 
-      {/* Charts Row 1 */}
+      {/* Row 1: Daily Trend (wide) + Quality Gauges */}
       <div className="charts-grid">
         <DailyTrendChart data={daily} />
-        <CategoryChart data={categories} />
+        <CompletenessGauge summary={summary} />
       </div>
 
-      {/* Charts Row 2 */}
+      {/* Row 2: Category Distribution + Status */}
       <div className="charts-grid">
-        <AgentChart data={agents} />
+        <CategoryChart data={categories} />
         <StatusChart data={statuses} />
       </div>
+
+      {/* Row 3: Agent Performance + Weekly Comparison */}
+      <div className="charts-grid">
+        <AgentChart data={agents} />
+        <WeeklyComparisonChart data={weekly} />
+      </div>
+
+      {/* Row 4: Missing Fields (full width if data exists) */}
+      {missingFields && missingFields.length > 0 && (
+        <div className="charts-grid charts-grid-single">
+          <TopMissingFieldsChart data={missingFields} />
+        </div>
+      )}
 
       {/* Recent Surveys Table */}
       <SurveyTable data={surveys} pagination={pagination} />
