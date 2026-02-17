@@ -1,0 +1,189 @@
+{
+  "title": "NAVER POI Pilot — Pre-Delivery Checklist",
+  "contract": {
+    "client": "NAVER Cloud Corporation",
+    "provider": "Farq Technology Establishment"
+  },
+  "checklist": [
+    {
+      "id": 1,
+      "category": "Data Format",
+      "item": "CSV file exported with UTF-8 encoding",
+      "status": "pending",
+      "notes": ""
+    },
+    {
+      "id": 2,
+      "category": "Data Format",
+      "item": "JSON file exported with UTF-8 encoding",
+      "status": "pending",
+      "notes": ""
+    },
+    {
+      "id": 3,
+      "category": "Data Format",
+      "item": "Coordinate system is WGS84",
+      "status": "pending",
+      "notes": ""
+    },
+    {
+      "id": 4,
+      "category": "Data Format",
+      "item": "One POI per record confirmed",
+      "status": "pending",
+      "notes": ""
+    },
+    {
+      "id": 5,
+      "category": "Data Integrity",
+      "item": "All required fields populated (global_id, name_ar, name_en, category, company_status, latitude, longitude, working_days, working_hours)",
+      "status": "pending",
+      "notes": ""
+    },
+    {
+      "id": 6,
+      "category": "Data Integrity",
+      "item": "Categories are lowercase enforced",
+      "status": "pending",
+      "notes": ""
+    },
+    {
+      "id": 7,
+      "category": "Data Integrity",
+      "item": "Boolean fields are strict true/false only",
+      "status": "pending",
+      "notes": ""
+    },
+    {
+      "id": 8,
+      "category": "Data Integrity",
+      "item": "Phone numbers in KSA format (+966 or 05)",
+      "status": "pending",
+      "notes": ""
+    },
+    {
+      "id": 9,
+      "category": "Data Integrity",
+      "item": "Coordinates within KSA bounds (lat 15-32.5, lon 34-56)",
+      "status": "pending",
+      "notes": ""
+    },
+    {
+      "id": 10,
+      "category": "Data Integrity",
+      "item": "No personal data included",
+      "status": "pending",
+      "notes": ""
+    },
+    {
+      "id": 11,
+      "category": "Quality Assurance",
+      "item": "30% sampling inspection completed",
+      "status": "pending",
+      "notes": ""
+    },
+    {
+      "id": 12,
+      "category": "Quality Assurance",
+      "item": "Accuracy rate >= 95%",
+      "status": "pending",
+      "notes": ""
+    },
+    {
+      "id": 13,
+      "category": "Quality Assurance",
+      "item": "Validation report generated",
+      "status": "pending",
+      "notes": ""
+    },
+    {
+      "id": 14,
+      "category": "Quality Assurance",
+      "item": "KPI summary report generated",
+      "status": "pending",
+      "notes": ""
+    },
+    {
+      "id": 15,
+      "category": "Quality Assurance",
+      "item": "Completeness report generated",
+      "status": "pending",
+      "notes": ""
+    },
+    {
+      "id": 16,
+      "category": "Media",
+      "item": "Exterior photos available for all POIs",
+      "status": "pending",
+      "notes": ""
+    },
+    {
+      "id": 17,
+      "category": "Media",
+      "item": "Interior photos available for all POIs",
+      "status": "pending",
+      "notes": ""
+    },
+    {
+      "id": 18,
+      "category": "Media",
+      "item": "Walkthrough videos processed (if applicable)",
+      "status": "pending",
+      "notes": ""
+    },
+    {
+      "id": 19,
+      "category": "Financial",
+      "item": "Billing summary generated",
+      "status": "pending",
+      "notes": ""
+    },
+    {
+      "id": 20,
+      "category": "Financial",
+      "item": "Total cost within SAR 50,000 budget cap",
+      "status": "pending",
+      "notes": ""
+    },
+    {
+      "id": 21,
+      "category": "Delivery",
+      "item": "Data dictionary included",
+      "status": "pending",
+      "notes": ""
+    },
+    {
+      "id": 22,
+      "category": "Delivery",
+      "item": "Compliance statement included",
+      "status": "pending",
+      "notes": ""
+    },
+    {
+      "id": 23,
+      "category": "Delivery",
+      "item": "Folder structure matches specification",
+      "status": "pending",
+      "notes": ""
+    },
+    {
+      "id": 24,
+      "category": "Compliance",
+      "item": "Server residency: KSA only confirmed",
+      "status": "pending",
+      "notes": ""
+    },
+    {
+      "id": 25,
+      "category": "Compliance",
+      "item": "Coordinate tolerance: all within 30m verified",
+      "status": "pending",
+      "notes": ""
+    }
+  ],
+  "sign_off": {
+    "prepared_by": "",
+    "reviewed_by": "",
+    "date": ""
+  }
+}

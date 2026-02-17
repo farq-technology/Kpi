@@ -1,0 +1,75 @@
+Subject: NAVER POI Pilot — Data Delivery Package [Batch #___]
+
+Dear NAVER Cloud Corporation Team,
+
+We are pleased to submit the POI Data Delivery Package for the NAVER POI Pilot
+Project, prepared by Farq Technology Establishment.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  DELIVERY SUMMARY
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  Delivery Date:        [DATE]
+  Total POIs:           [TOTAL_POIS]
+  Data Accuracy:        [ACCURACY]%
+  QA Decision:          [DECISION]
+  Avg Completeness:     [COMPLETENESS]%
+  Total Cost:           SAR [TOTAL_COST]
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  DELIVERY PACKAGE CONTENTS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  /csv/                          POI data in CSV format (UTF-8)
+  /json/                         POI data in JSON format (UTF-8)
+  /media/                        Media assets (photos + videos)
+  validation_report.json         Full validation results
+  kpi_summary.json               30% QA sampling KPI report
+  completeness_report.csv        Per-POI completeness scores
+  billing_summary.json           Cost breakdown and budget status
+  data_dictionary.json           Complete field reference
+  compliance_statement.txt       Contractual compliance certification
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  COMPLIANCE CERTIFICATION
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  Format:               CSV + JSON (both included)
+  Encoding:             UTF-8
+  Coordinate System:    WGS84
+  One POI per Record:   Confirmed
+  No Personal Data:     Confirmed
+  Server Residency:     KSA only
+  Budget Cap:           Within SAR 50,000 limit
+  Accuracy KPI:         >= 95% (30% sampling)
+  Coordinate Tolerance: <= 30 meters
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+The data has been validated through our automated QA pipeline,
+which includes:
+  - Required field completeness verification
+  - WGS84 coordinate bounds validation
+  - Boolean strict true/false enforcement
+  - Category lowercase enforcement
+  - KSA phone format validation
+  - 30% random sampling inspection
+
+Please find the complete delivery package attached / available at
+the designated secure transfer location.
+
+Should you have any questions or require clarifications, please do
+not hesitate to reach out.
+
+Best regards,
+
+[YOUR NAME]
+Data Delivery Manager
+Farq Technology Establishment
+Email: info@farq.tech
+Phone: +966-XXX-XXXXXXX
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  CONFIDENTIAL — This delivery is subject to the terms of the
+  NAVER Cloud Corporation Pilot Agreement.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

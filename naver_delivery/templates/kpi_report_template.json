@@ -1,0 +1,56 @@
+{
+  "report_title": "NAVER POI KPI Report",
+  "contract": {
+    "client": "NAVER Cloud Corporation",
+    "provider": "Farq Technology Establishment",
+    "pilot_budget_cap_sar": 50000,
+    "unit_price_poi_sar": 52.2,
+    "kpi_accuracy_requirement_pct": 95,
+    "sampling_inspection_pct": 30
+  },
+  "delivery_summary": {
+    "total_pois_delivered": 0,
+    "valid_pois": 0,
+    "invalid_pois": 0,
+    "overall_accuracy_pct": 0.0,
+    "avg_completeness_pct": 0.0,
+    "delivery_date": "YYYY-MM-DD"
+  },
+  "qa_inspection": {
+    "sample_size": 0,
+    "sampling_rate_pct": 30,
+    "valid_in_sample": 0,
+    "invalid_in_sample": 0,
+    "sample_accuracy_pct": 0.0,
+    "decision": "ACCEPT | REQUIRE_CORRECTION | REQUIRE_RESURVEY"
+  },
+  "accuracy_breakdown": {
+    "required_fields_compliance_pct": 0.0,
+    "coordinate_validity_pct": 0.0,
+    "boolean_strict_compliance_pct": 0.0,
+    "category_lowercase_pct": 0.0,
+    "phone_format_compliance_pct": 0.0
+  },
+  "error_summary": {
+    "top_errors": [],
+    "top_warnings": []
+  },
+  "billing": {
+    "poi_cost_sar": 0.0,
+    "video_cost_sar": 0.0,
+    "total_cost_sar": 0.0,
+    "budget_cap_sar": 50000,
+    "remaining_sar": 0.0,
+    "within_budget": true
+  },
+  "decision_rules": {
+    "ACCEPT": "accuracy >= 95%",
+    "REQUIRE_CORRECTION": "accuracy 90% - 94.99%",
+    "REQUIRE_RESURVEY": "accuracy < 90%"
+  },
+  "minor_deviations_allowed": [
+    "Typo in name (does not affect core identity)",
+    "Coordinate error within 30 meters of actual location"
+  ],
+  "generated_at": "ISO-8601 timestamp"
+}

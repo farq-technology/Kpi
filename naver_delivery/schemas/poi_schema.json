@@ -1,0 +1,208 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://farq.tech/schemas/naver-poi-v1.json",
+  "title": "NAVER POI Record",
+  "description": "POI schema strictly aligned with NAVER Cloud Corporation Pilot Agreement. Provider: Farq Technology Establishment.",
+  "type": "object",
+  "required": [
+    "global_id",
+    "name_ar",
+    "name_en",
+    "category",
+    "company_status",
+    "latitude",
+    "longitude",
+    "working_days",
+    "working_hours"
+  ],
+  "properties": {
+    "global_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique identifier for the POI (UUID v4)"
+    },
+    "name_ar": {
+      "type": "string",
+      "minLength": 1,
+      "description": "POI name in Arabic (required)"
+    },
+    "name_en": {
+      "type": "string",
+      "minLength": 1,
+      "description": "POI name in English (required)"
+    },
+    "legal_name": {
+      "type": ["string", "null"],
+      "description": "Legal / registered business name"
+    },
+    "category": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[a-z][a-z0-9_& ]*$",
+      "description": "Primary category (lowercase enforced)"
+    },
+    "secondary_category": {
+      "type": ["string", "null"],
+      "description": "Secondary category"
+    },
+    "cuisine": {
+      "type": ["string", "null"],
+      "description": "Cuisine type (for restaurants/cafes)"
+    },
+    "company_status": {
+      "type": "string",
+      "enum": ["open", "closed", "temporary closed", "permanently closed", "under construction", "coming soon", "relocated"],
+      "description": "Current operating status"
+    },
+    "commercial_license_number": {
+      "type": ["string", "null"],
+      "description": "Commercial registration / license number"
+    },
+    "latitude": {
+      "type": "number",
+      "minimum": 15.0,
+      "maximum": 32.5,
+      "description": "WGS84 latitude (KSA range: 15.0-32.5)"
+    },
+    "longitude": {
+      "type": "number",
+      "minimum": 34.0,
+      "maximum": 56.0,
+      "description": "WGS84 longitude (KSA range: 34.0-56.0)"
+    },
+    "building_number": {
+      "type": ["string", "null"],
+      "description": "Building number"
+    },
+    "floor_number": {
+      "type": ["string", "null"],
+      "description": "Floor number or level"
+    },
+    "entrance_description": {
+      "type": ["string", "null"],
+      "description": "Description of how to reach the entrance"
+    },
+    "google_map_url": {
+      "type": ["string", "null"],
+      "format": "uri",
+      "description": "Google Maps link"
+    },
+    "phone_number": {
+      "type": ["string", "null"],
+      "pattern": "^(\\+966|05|5)[0-9]{8,9}$",
+      "description": "KSA phone number (+966XXXXXXXXX or 05XXXXXXXX)"
+    },
+    "email": {
+      "type": ["string", "null"],
+      "format": "email",
+      "description": "Contact email"
+    },
+    "website": {
+      "type": ["string", "null"],
+      "description": "Website URL"
+    },
+    "instagram": {
+      "type": ["string", "null"],
+      "description": "Instagram handle or URL"
+    },
+    "tiktok": {
+      "type": ["string", "null"],
+      "description": "TikTok handle or URL"
+    },
+    "x_account": {
+      "type": ["string", "null"],
+      "description": "X (Twitter) handle or URL"
+    },
+    "snapchat": {
+      "type": ["string", "null"],
+      "description": "Snapchat handle or URL"
+    },
+    "working_days": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Working days (e.g. 'Sunday - Thursday', 'All Days')"
+    },
+    "working_hours": {
+      "type": ["string", "object"],
+      "description": "Working hours - structured JSON per day or summary string"
+    },
+    "break_times": {
+      "type": ["string", "object", "null"],
+      "description": "Break times - structured JSON or summary string"
+    },
+    "holidays": {
+      "type": ["string", "array", "null"],
+      "description": "Holidays observed",
+      "items": { "type": "string" }
+    },
+    "drive_thru": { "type": "boolean", "description": "Has drive-thru service" },
+    "dine_in": { "type": "boolean", "description": "Offers dine-in" },
+    "only_delivery": { "type": "boolean", "description": "Delivery only (no dine-in)" },
+    "reservation_available": { "type": "boolean", "description": "Accepts reservations" },
+    "require_ticket": { "type": "boolean", "description": "Requires entry ticket" },
+    "order_from_car": { "type": "boolean", "description": "Offers order-from-car service" },
+    "pickup_point_exists": { "type": "boolean", "description": "Has designated pickup point" },
+    "wifi": { "type": "boolean", "description": "Free WiFi available" },
+    "music": { "type": "boolean", "description": "Plays music" },
+    "valet_parking": { "type": "boolean", "description": "Offers valet parking" },
+    "has_parking_lot": { "type": "boolean", "description": "Has parking lot" },
+    "wheelchair_accessible": { "type": "boolean", "description": "Wheelchair accessible" },
+    "family_seating": { "type": "boolean", "description": "Has family section seating" },
+    "waiting_area": { "type": "boolean", "description": "Has waiting area" },
+    "private_rooms": { "type": "boolean", "description": "Has private dining rooms" },
+    "smoking_area": { "type": "boolean", "description": "Has designated smoking area" },
+    "children_area": { "type": "boolean", "description": "Has children's play area" },
+    "shisha_available": { "type": "boolean", "description": "Offers shisha/hookah" },
+    "live_sports": { "type": "boolean", "description": "Shows live sports" },
+    "is_landmark": { "type": "boolean", "description": "Is a notable landmark" },
+    "is_trending": { "type": "boolean", "description": "Currently trending/popular" },
+    "large_groups": { "type": "boolean", "description": "Can accommodate large groups" },
+    "women_prayer_room": { "type": "boolean", "description": "Has women-only prayer room" },
+    "iftar_tent": { "type": "boolean", "description": "Provides iftar tent (Ramadan)" },
+    "iftar_menu": { "type": "boolean", "description": "Offers iftar menu (Ramadan)" },
+    "open_suhoor": { "type": "boolean", "description": "Open during suhoor (Ramadan)" },
+    "free_entry": { "type": "boolean", "description": "Free entry" },
+    "accepted_payment_methods": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": ["cash", "mada", "visa", "mastercard", "apple_pay", "stc_pay", "bank_transfer", "other"]
+      },
+      "description": "Accepted payment methods"
+    },
+    "languages_spoken": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": ["arabic", "english", "urdu", "hindi", "tagalog", "other"]
+      },
+      "description": "Languages spoken by staff"
+    },
+    "exterior_image_url": {
+      "type": ["string", "null"],
+      "format": "uri",
+      "description": "URL to exterior photo"
+    },
+    "interior_image_url": {
+      "type": ["string", "null"],
+      "format": "uri",
+      "description": "URL to interior photo"
+    },
+    "entrance_image_url": {
+      "type": ["string", "null"],
+      "format": "uri",
+      "description": "URL to entrance photo"
+    },
+    "menu_image_url": {
+      "type": ["string", "null"],
+      "format": "uri",
+      "description": "URL to menu photo"
+    },
+    "walkthrough_video_url": {
+      "type": ["string", "null"],
+      "format": "uri",
+      "description": "URL to interior walkthrough video"
+    }
+  },
+  "additionalProperties": false
+}

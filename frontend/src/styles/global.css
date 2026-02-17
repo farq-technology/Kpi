@@ -1132,6 +1132,436 @@ table tr:hover {
   margin-top: var(--space-xs);
 }
 
+/* ========== Enhanced Chart Styles ========== */
+
+/* Chart card header with title + badge */
+.chart-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-md);
+}
+
+.chart-card-header .chart-card-title {
+  margin-bottom: 0;
+}
+
+.chart-subtitle {
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.chart-trend-badge {
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  padding: 2px 10px;
+  border-radius: 12px;
+}
+
+.chart-trend-badge.trend-up {
+  background: #e8f5e9;
+  color: #2e7d32;
+}
+
+.chart-trend-badge.trend-down {
+  background: #fce4ec;
+  color: #c62828;
+}
+
+/* Chart summary row (mini stats above chart) */
+.chart-summary-row {
+  display: flex;
+  gap: var(--space-lg);
+  margin-bottom: var(--space-md);
+  padding: var(--space-sm) 0;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.chart-summary-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.chart-summary-label {
+  font-size: 10px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight: 500;
+}
+
+.chart-summary-value {
+  font-size: var(--font-size-xl);
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1;
+}
+
+.chart-summary-unit {
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+/* Custom tooltip */
+.chart-tooltip {
+  background: #fff;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: var(--space-sm) var(--space-md);
+  box-shadow: var(--shadow-md);
+  min-width: 160px;
+}
+
+.chart-tooltip-header {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: var(--space-xs);
+  padding-bottom: var(--space-xs);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.chart-tooltip-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 0;
+  font-size: var(--font-size-xs);
+}
+
+.chart-tooltip-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.chart-tooltip-label {
+  flex: 1;
+  color: var(--text-secondary);
+}
+
+.chart-tooltip-value {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+/* Single-column chart grid */
+.charts-grid-single {
+  grid-template-columns: 1fr;
+}
+
+/* ========== Category Chart Legend ========== */
+.category-chart-layout {
+  display: flex;
+  gap: var(--space-md);
+  align-items: center;
+}
+
+.category-legend {
+  flex: 0 0 auto;
+  max-width: 220px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.category-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: var(--font-size-xs);
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+
+.category-legend-item:hover,
+.category-legend-item.active {
+  background: var(--bg-primary);
+}
+
+.category-legend-color {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+.category-legend-name {
+  flex: 1;
+  color: var(--text-primary);
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100px;
+}
+
+.category-legend-value {
+  font-weight: 600;
+  color: var(--text-primary);
+  min-width: 24px;
+  text-align: end;
+}
+
+.category-legend-pct {
+  color: var(--text-muted);
+  min-width: 32px;
+  text-align: end;
+}
+
+/* ========== Agent Leaderboard ========== */
+.agent-leaderboard {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: var(--space-md);
+}
+
+.agent-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  padding: 6px 8px;
+  border-radius: 8px;
+  transition: background var(--transition-fast);
+}
+
+.agent-row:hover {
+  background: var(--bg-primary);
+}
+
+.agent-info {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 120px;
+  flex-shrink: 0;
+}
+
+.agent-rank {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.rank-gold { background: #fff8e1; color: #f57f17; }
+.rank-silver { background: #f5f5f5; color: #616161; }
+.rank-bronze { background: #fff3e0; color: #e65100; }
+
+.agent-name {
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100px;
+}
+
+.agent-metrics {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+}
+
+.agent-bar-container {
+  flex: 1;
+  position: relative;
+  height: 20px;
+  background: var(--bg-primary);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.agent-bar {
+  height: 100%;
+  background: linear-gradient(90deg, #1a73e8, #4a9af5);
+  border-radius: 4px;
+  transition: width 600ms ease-out;
+}
+
+.agent-bar-label {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+[dir="rtl"] .agent-bar-label {
+  right: auto;
+  left: 6px;
+}
+
+.agent-scores {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.agent-compliance-badge {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+
+.agent-completion {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-muted);
+  min-width: 28px;
+  text-align: end;
+}
+
+/* ========== Status Summary Cards ========== */
+.status-summary {
+  display: flex;
+  gap: var(--space-md);
+  margin-bottom: var(--space-md);
+}
+
+.status-card {
+  flex: 1;
+  padding: var(--space-md);
+  border-radius: 8px;
+  border: 1px solid;
+  text-align: center;
+}
+
+.status-card-count {
+  font-size: var(--font-size-2xl);
+  font-weight: 700;
+  line-height: 1;
+}
+
+.status-card-name {
+  font-size: var(--font-size-xs);
+  color: var(--text-secondary);
+  margin: 4px 0;
+  font-weight: 500;
+}
+
+.status-card-pct {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+}
+
+.status-card-bar {
+  height: 3px;
+  background: rgba(0, 0, 0, 0.06);
+  border-radius: 3px;
+  overflow: hidden;
+  margin-top: 6px;
+}
+
+.status-card-bar-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 600ms ease-out;
+}
+
+/* ========== Completeness Gauge ========== */
+.gauge-grid {
+  display: flex;
+  gap: 0;
+  justify-content: center;
+}
+
+.gauge-item {
+  flex: 1;
+  min-width: 0;
+}
+
+.gauge-legend {
+  display: flex;
+  justify-content: center;
+  gap: var(--space-lg);
+  padding-top: var(--space-sm);
+  border-top: 1px solid var(--border-color);
+  margin-top: var(--space-sm);
+}
+
+.gauge-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.gauge-legend-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+/* ========== Missing Fields List ========== */
+.missing-fields-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: var(--space-md);
+}
+
+.missing-field-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  padding: 4px 0;
+}
+
+.missing-field-name {
+  font-size: var(--font-size-xs);
+  color: var(--text-primary);
+  font-weight: 500;
+  min-width: 120px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.missing-field-bar-container {
+  flex: 1;
+  height: 14px;
+  background: var(--bg-primary);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.missing-field-bar {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 600ms ease-out;
+}
+
+.missing-field-count {
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  color: var(--text-primary);
+  min-width: 28px;
+  text-align: end;
+}
+
+.missing-field-pct {
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+  min-width: 32px;
+  text-align: end;
+}
+
 /* ========== Responsive: Wide (>1280px) ========== */
 @media (min-width: 1281px) {
   .kpi-grid {
@@ -1188,6 +1618,37 @@ table tr:hover {
   .filter-bar {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .category-chart-layout {
+    flex-direction: column;
+  }
+
+  .category-legend {
+    max-width: 100%;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: var(--space-sm);
+  }
+
+  .status-summary {
+    flex-direction: column;
+  }
+
+  .gauge-grid {
+    flex-direction: column;
+  }
+
+  .chart-summary-row {
+    gap: var(--space-md);
+  }
+
+  .agent-info {
+    min-width: 80px;
+  }
+
+  .agent-name {
+    max-width: 60px;
   }
 
   .detail-grid {

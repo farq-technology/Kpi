@@ -1,0 +1,36 @@
+{
+  "billing_title": "NAVER POI Pilot — Billing Summary",
+  "contract": {
+    "client": "NAVER Cloud Corporation",
+    "provider": "Farq Technology Establishment",
+    "pilot_budget_cap_sar": 50000,
+    "unit_price_poi_sar": 52.2,
+    "video_surcharge_sar": 15.0
+  },
+  "delivery": {
+    "total_pois_delivered": 0,
+    "pois_with_video": 0,
+    "pois_without_video": 0
+  },
+  "cost_breakdown": {
+    "poi_data_cost": {
+      "quantity": 0,
+      "rate_sar": 52.2,
+      "subtotal_sar": 0.0
+    },
+    "walkthrough_video_cost": {
+      "quantity": 0,
+      "rate_sar": 15.0,
+      "subtotal_sar": 0.0
+    }
+  },
+  "totals": {
+    "subtotal_sar": 0.0,
+    "budget_cap_sar": 50000,
+    "remaining_budget_sar": 0.0,
+    "over_budget": false,
+    "max_pois_within_budget": 958
+  },
+  "payment_terms": "As per NAVER Cloud Corporation Pilot Agreement",
+  "generated_at": "ISO-8601 timestamp"
+}
