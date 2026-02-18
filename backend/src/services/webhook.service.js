@@ -3,6 +3,33 @@ const crypto = require('crypto');
 const { arcgisToLocalMap } = require('../config/field-mappings');
 const { calculateCompliance } = require('../utils/compliance');
 const logger = require('../utils/logger');
+const arcgisService = require('./arcgis.service');
+
+/**
+ * All survey_responses data columns extracted from ArcGIS webhook.
+ * Mirrors FIELD_DEFINITIONS in field-mappings.js (minus surveyor_username).
+ */
+const WEBHOOK_DATA_COLUMNS = [
+  'poi_name_ar', 'poi_name_en', 'legal_name', 'category', 'secondary_category',
+  'company_status', 'status_notes', 'identity_correct', 'identity_notes',
+  'phone_number', 'website', 'social_media', 'working_days', 'working_hours',
+  'break_time', 'holidays', 'language', 'payment_methods', 'commercial_license',
+  'building_number', 'floor_number', 'entrance_description', 'is_landmark',
+  'pickup_point_exists', 'pickup_description', 'has_physical_menu', 'has_digital_menu',
+  'menu_barcode_url', 'cuisine', 'dine_in', 'only_delivery', 'drive_thru',
+  'order_from_car', 'has_family_seating', 'has_separate_rooms_for_dining',
+  'large_groups_can_be_seated', 'reservation', 'has_parking_lot', 'valet_parking',
+  'wifi', 'is_wheelchair_accessible', 'has_smoking_area', 'has_a_waiting_area',
+  'has_women_only_prayer_room', 'children_area', 'music', 'live_sport_broadcasting',
+  'shisha', 'offers_iftar_menu', 'is_open_during_suhoor', 'provides_iftar_tent',
+  'require_ticket', 'is_free_entry', 'general_notes',
+];
+
+// Reverse map: local DB column → ArcGIS field name
+const localToArcgis = {};
+for (const [arcgis, local] of Object.entries(arcgisToLocalMap)) {
+  localToArcgis[local] = arcgis;
+}
 
 class WebhookService {
   async processWebhook(payload) {
@@ -10,7 +37,7 @@ class WebhookService {
     const feature = payload.feature || {};
     const attrs = feature.attributes || {};
     const geometry = feature.geometry || {};
-    const serverResponse = payload.serverResponse || {};
+    const serverResponse = payload.serverResponse || payload.response || {};
     const userInfo = payload.userInfo || {};
     const surveyInfo = payload.surveyInfo || {};
 
@@ -28,15 +55,36 @@ class WebhookService {
       const localName = arcgisToLocalMap[arcgisName];
       if (localName) localRecord[localName] = value;
     }
-    // Count images and videos separately for weighted compliance
+
+    // Fetch attachments from ArcGIS Online (single source of truth for media)
+    let attachmentInfos = [];
+    if (objectId) {
+      try {
+        const groups = await arcgisService.queryAttachments([objectId]);
+        const group = groups.find(g => g.parentObjectId == objectId);
+        attachmentInfos = group?.attachmentInfos || [];
+      } catch (err) {
+        logger.warn('Could not fetch attachments from ArcGIS', { objectId, error: err.message });
+      }
+    }
+    // Fallback to payload attachments only if ArcGIS fetch failed and payload has them
+    if (attachmentInfos.length === 0 && feature.attachments?.length > 0) {
+      attachmentInfos = feature.attachments.map(a => ({
+        id: a.id,
+        globalId: a.globalId,
+        name: a.name,
+        contentType: a.contentType,
+        size: a.size,
+        keywords: a.keywords,
+      }));
+    }
+
     let imageCount = 0;
     let videoCount = 0;
-    if (feature.attachments && feature.attachments.length > 0) {
-      for (const att of feature.attachments) {
-        const ct = (att.contentType || '').toLowerCase();
-        if (ct.startsWith('video/')) videoCount++;
-        else if (ct.startsWith('image/')) imageCount++;
-      }
+    for (const att of attachmentInfos) {
+      const ct = (att.contentType || '').toLowerCase();
+      if (ct.startsWith('video/')) videoCount++;
+      else if (ct.startsWith('image/')) imageCount++;
     }
     const { score, isComplete, missingFields, totalFields, filledFields } = calculateCompliance(localRecord, {
       category: localRecord.category || attrs.category || '',
@@ -48,8 +96,8 @@ class WebhookService {
       ? new Date(attrs.CreationDate).toISOString()
       : new Date().toISOString();
 
-    const lon = geometry.x || attrs.longitude;
-    const lat = geometry.y || attrs.latitude;
+    const lat = geometry.y ?? attrs.latitude ?? null;
+    const lon = geometry.x ?? attrs.longitude ?? null;
 
     // Upsert survey form
     let surveyId = null;
@@ -72,75 +120,56 @@ class WebhookService {
       }
     }
 
-    // Insert response
+    // Build data values from localRecord using WEBHOOK_DATA_COLUMNS (all 53 fields)
     const responseId = crypto.randomUUID();
-    const query = `
-      INSERT INTO survey_responses (
-        id, survey_id, arcgis_object_id, arcgis_global_id,
-        surveyor_username, surveyor_name, surveyor_email, agent_id,
-        poi_name_ar, poi_name_en, category, secondary_category,
-        company_status, phone_number, website, social_media,
-        working_days, working_hours, break_time, holidays,
-        language, payment_methods, commercial_license,
-        building_number, floor_number, entrance_location,
-        dine_in, has_family_seating, has_parking_lot, wifi,
-        is_wheelchair_accessible, cuisine, offers_iftar_menu, is_open_during_suhoor,
-        latitude, longitude,
-        is_complete, missing_fields, compliance_score, total_fields, filled_fields,
-        event_type, submitted_at, raw_payload, attributes
-      ) VALUES (
-        $1, $2, $3, $4,
-        $5, $6, $7, $8,
-        $9, $10, $11, $12,
-        $13, $14, $15, $16,
-        $17, $18, $19, $20,
-        $21, $22, $23,
-        $24, $25, $26,
-        $27, $28, $29, $30,
-        $31, $32, $33, $34,
-        $35, $36,
-        $37, $38, $39, $40, $41,
-        $42, $43, $44, $45
-      )
-    `;
+    const surveyorUsername = userInfo.username || localRecord.surveyor_username || attrs.agent_name || attrs.Creator || null;
+    const surveyorName = userInfo.fullName || `${userInfo.firstName || ''} ${userInfo.lastName || ''}`.trim() || null;
+
+    const dataValues = WEBHOOK_DATA_COLUMNS.map(col => {
+      const v = localRecord[col];
+      if (v !== undefined && v !== null) return v;
+      // Fallback: try direct ArcGIS attr name
+      const arcgisKey = localToArcgis[col];
+      const fallback = arcgisKey ? attrs[arcgisKey] : undefined;
+      return (fallback !== undefined && fallback !== '') ? fallback : null;
+    });
+
+    const columns = [
+      'id', 'survey_id', 'arcgis_object_id', 'arcgis_global_id',
+      'surveyor_username', 'surveyor_name', 'surveyor_email', 'agent_id',
+      ...WEBHOOK_DATA_COLUMNS,
+      'latitude', 'longitude',
+      'is_complete', 'missing_fields', 'compliance_score', 'total_fields', 'filled_fields',
+      'event_type', 'submitted_at', 'raw_payload', 'attributes',
+    ];
 
     const values = [
       responseId, surveyId, objectId, globalId,
-      userInfo.username || attrs.agent_name || attrs.Creator || null,
-      userInfo.fullName || `${userInfo.firstName || ''} ${userInfo.lastName || ''}`.trim() || null,
-      userInfo.email || null,
-      attrs.agent_id || null,
-      attrs.name_ar || null, attrs.name_en || null,
-      attrs.category || null, attrs.secondary_category || null,
-      attrs.company_status || null, attrs.phone_number || null,
-      attrs.website || null, attrs.social_media || null,
-      attrs.working_days || null, attrs.working_hours_each_day || null,
-      attrs.break_time_each_day || null, attrs.holidays || null,
-      attrs.language || null, attrs.accepted_payment_methods || null,
-      attrs.commercial_license_number || null,
-      attrs.building_number || null, attrs.floor_number || null,
-      attrs.entrance_location || null,
-      attrs.dine_in || null, attrs.has_family_seating || null,
-      attrs.has_parking_lot || null, attrs.wifi || null,
-      attrs.is_wheelchair_accessible || null, attrs.cuisine || null,
-      attrs.offers_iftar_menu || null, attrs.is_open_during_suhoor || null,
-      lat || null, lon || null,
-      isComplete ? 1 : 0, JSON.stringify(missingFields), score, totalFields, filledFields,
+      surveyorUsername, surveyorName, userInfo.email || null, attrs.agent_id || null,
+      ...dataValues,
+      lat, lon,
+      isComplete,
+      Array.isArray(missingFields) ? missingFields : [],
+      score, totalFields, filledFields,
       eventType, submittedAt, JSON.stringify(payload), JSON.stringify(attrs),
     ];
 
+    const placeholders = values.map((_, i) => `$${i + 1}`).join(', ');
+    const query = `INSERT INTO survey_responses (${columns.join(', ')}) VALUES (${placeholders})`;
+
     await database.query(query, values);
 
-    // Process attachments
-    if (feature.attachments && feature.attachments.length > 0) {
-      await this.processAttachments(responseId, feature.attachments);
+    // Store attachments from ArcGIS Online (all media from ArcGIS, not payload)
+    if (attachmentInfos.length > 0 && objectId) {
+      await this.processAttachmentsFromArcGIS(responseId, objectId, attachmentInfos);
     }
 
     return { id: responseId, objectId, globalId, isComplete, complianceScore: score };
   }
 
-  async processAttachments(responseId, attachments) {
-    for (const att of attachments) {
+  async processAttachmentsFromArcGIS(responseId, objectId, attachmentInfos) {
+    for (const att of attachmentInfos) {
+      if (att.id == null) continue; // skip invalid entries
       const contentType = att.contentType || '';
       let mediaCategory = 'document';
       if (contentType.startsWith('image/')) mediaCategory = 'image';
@@ -148,10 +177,11 @@ class WebhookService {
       else if (contentType.startsWith('audio/')) mediaCategory = 'audio';
 
       const id = crypto.randomUUID();
+      const arcgisUrl = `${objectId}/attachments/${att.id}`;
       await database.query(
         `INSERT INTO media_attachments (id, response_id, arcgis_attachment_id, arcgis_global_id, file_name, content_type, media_category, keyword, file_size_bytes, arcgis_url)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
-        [id, responseId, att.id || 0, att.globalId || null, att.name || 'unknown', contentType, mediaCategory, att.keywords || null, att.size || 0, att.url || '']
+        [id, responseId, att.id, att.globalId || null, att.name || 'unknown', contentType, mediaCategory, att.keywords || null, att.size || 0, arcgisUrl]
       );
     }
   }
