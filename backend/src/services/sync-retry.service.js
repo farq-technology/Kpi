@@ -7,8 +7,10 @@ const { normalizeFieldValue } = require('../utils/field-normalization');
 const logger = require('../utils/logger');
 
 const MAX_RETRIES_PER_RUN = 20;
+let columnMissing = false;
 
 async function retryPendingSyncs() {
+  if (columnMissing) return;
   try {
     const { rows } = await pool.query(
       `SELECT id, arcgis_object_id, arcgis_global_id, attributes
@@ -86,7 +88,12 @@ async function retryPendingSyncs() {
       }
     }
   } catch (err) {
-    logger.error('SyncRetry: error', { error: err.message });
+    if (err.message && err.message.includes('does not exist')) {
+      logger.warn('SyncRetry: sync columns not yet created, skipping until next restart', { error: err.message });
+      columnMissing = true;
+    } else {
+      logger.error('SyncRetry: error', { error: err.message });
+    }
   }
 }
 

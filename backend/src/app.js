@@ -10,6 +10,9 @@ const v1Routes = require('./routes/v1');
 
 const app = express();
 
+// Trust proxy (required behind Render/reverse proxy for rate limiter)
+app.set('trust proxy', 1);
+
 // Security
 app.use(helmet({
   crossOriginResourcePolicy: { policy: 'cross-origin' },
